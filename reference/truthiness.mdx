@@ -44,7 +44,7 @@ The interpreter's `_truthy` function determines truth in this exact order:
 2. `bool` → the value itself (`TRUE` truthy, `FALSE` falsy)
 3. `int` or `float` → truthy if **not equal to zero**
 4. `str` → truthy if **not the empty string**
-5. Everything else (lists, structures, …) → delegates to Python's `bool()`, which means non-empty collections are truthy
+5. Everything else (e.g. lists) → delegates to Python's `bool()`, which means non-empty collections are truthy
 
 ---
 
@@ -75,16 +75,18 @@ The interpreter's `_truthy` function determines truth in this exact order:
 
 ## Full Reference Table
 
-| Type | Truthy | Falsy |
-|------|--------|-------|
-| `nothing` | *(never truthy)* | all `nothing` values |
-| `bool` | `TRUE` | `FALSE` |
-| `int` | any value `≠ 0` | `0` |
-| `float` | any value `≠ 0.0` | `0.0` |
-| `str` | any non-empty string | `''` (empty string) |
-| `record` | any non-empty record | `""` (empty record) |
-| `list` | any non-empty list | `[]` (empty list) |
-| `structure` | any structure with at least one field set | structure with no values |
+The rows marked **Planned** describe types that appear in the Hades README but are not yet implemented in the lexer or interpreter. Their truthiness semantics are theoretical and subject to change.
+
+| Type | Truthy | Falsy | Status |
+|------|--------|-------|--------|
+| `nothing` | *(never truthy)* | all `nothing` values | Implemented |
+| `bool` | `TRUE` | `FALSE` | Implemented |
+| `int` | any value ≠ 0 | `0` | Implemented |
+| `float` | any value ≠ 0.0 | `0.0` | Implemented |
+| `str` | any non-empty string | `''` (empty string) | Implemented |
+| `list` | any non-empty list | `[]` (empty list) | Implemented |
+| `record` | any non-empty record | `""` (empty record) | **Planned** |
+| `structure` | any structure with at least one field set | structure with no values | **Planned** |
 
 ---
 

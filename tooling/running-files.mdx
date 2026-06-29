@@ -1,5 +1,5 @@
 ---
-title: "Running Hades Programs from the Command Line"
+title: "Running Hades Programs and Files from the Command Line"
 sidebarTitle: "Running Files"
 description: "Learn how to execute .hds files with the Hades interpreter, use verbose mode for debugging, and understand file resolution and exit codes."
 ---
@@ -15,7 +15,7 @@ python3 main.py <file.hds> [-v|--verbose]
 For a simple "hello world" program saved as `hello.hds`:
 
 ```cpp
-str greeting = 'Hello, World!';
+greeting: str = 'Hello, World!';
 print(greeting);
 ```
 
@@ -56,20 +56,16 @@ python3 main.py hello.hds -v
 Given the following source file:
 
 ```cpp
-int x = 10;
-int y = x + 5;
+x: int = 10;
+y: int = x + 5;
 print(y);
 ```
 
 Verbose output looks like this (abbreviated for clarity):
 
 ```
-[Token(INT, 10, line=0, col=5), Token(SEMICOLON, ';', ...), Token(ID, 'x', ...), ...]
-ProgramNode(statements=[
-  VarDeclNode(name='x', type=INT, value=NumberNode(10)),
-  VarDeclNode(name='y', type=INT, value=BinOpNode(IdNode('x'), PLUS, NumberNode(5))),
-  CallNode(callee='print', args=[IdNode('y')])
-])
+[Token(TT.INT_TYPE_HINT, 'int', 0:1), Token(TT.ID, 'x', 0:5), Token(TT.COLON, ':', 0:6), ...]
+ProgramNode([VarDeclNode('x': TT.INT_TYPE_HINT = NumberNode(10)), VarDeclNode('y': TT.INT_TYPE_HINT = BinOpNode(IdNode(x), TT.PLUS, NumberNode(5))), CallNode('print', args=[IdNode(y)])])
 15
 ```
 

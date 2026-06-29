@@ -147,6 +147,10 @@ class ReturnSignal(Exception):
 
 `_eval_return()` raises `ReturnSignal(value)`. `_call_function()` catches it with `except ReturnSignal as r` and extracts `r.value`. If a non-`nothing` function reaches the end of its body without raising `ReturnSignal`, `InterpreterError` is raised to report the missing return.
 
+<Warning>
+  `_call_function()` contains a debugging artifact: when a non-`nothing` function reaches end-of-body without returning, a `print(f'DEBUG: function.name=..., return_type=...')` line fires to stdout **before** the `InterpreterError` is raised. This is a leftover development print statement in the current source and will appear in program output in that error case.
+</Warning>
+
 <Tip>
   `ReturnSignal` is intentionally not a subclass of `InterpreterError`. This keeps accidental catch-all handlers from swallowing legitimate return propagation.
 </Tip>
@@ -167,7 +171,7 @@ The mapping from `TT` hint to expected Python type:
 |-----------|---------------------|
 | `INT_TYPE_HINT` | `int` |
 | `FLOAT_TYPE_HINT` | `float` |
-| `BOOL_TYPE_HINT` | `bool` (with an explicit `isinstance` guard so `True`/`False` are not accepted as `int`) |
+| `BOOL_TYPE_HINT` | `bool` (checked with an explicit `isinstance(value, bool)` guard, because Python's `bool` is a subclass of `int` — this ensures plain integers are not accepted where `bool` is declared) |
 | `STR_TYPE_HINT` | `str` |
 | `LIST_TYPE_HINT` | `list` |
 | `NOTHING_TYPE_HINT` | `NoneType` |

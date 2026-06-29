@@ -130,18 +130,16 @@ Hades ships with a small set of built-in functions available everywhere:
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `print` | `print(...)` | Prints all arguments concatenated, separated by nothing |
+| `print` | `print(...)` | Prints all arguments concatenated with no separator |
 | `type` | `type(value)` | Returns the Hades type name of `value` as a `str` |
 | `len` | `len(value)` | Returns the length of a `str` or `list` |
-| `pow` | `pow(base, exp)` | Raises `base` to the power of `exp` |
 
 ```cpp
 msg: str = 'hello';
 print(len(msg));       // 5
 print(type(msg));      // str
-print(pow(2, 10));     // 1024
 ```
 
 <Tip>
-  `print` accepts any number of arguments and joins them without a separator. Pass explicit space strings (`' '`) or newline characters (`'\n'`) when you need formatting between values.
+  `print` accepts any number of arguments and joins them with no separator. Pass explicit space strings (`' '`) or newline characters (`'\n'`) when you need formatting between values.
 </Tip>

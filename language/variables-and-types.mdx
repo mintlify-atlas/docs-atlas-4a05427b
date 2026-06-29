@@ -1,7 +1,7 @@
 ---
 title: "Declaring Variables and Data Types in the Hades Language"
 sidebarTitle: "Variables & Types"
-description: "Learn how to declare variables, understand Hades's seven-type system, and apply enforced runtime type checking across every assignment."
+description: "Learn how to declare variables, understand Hades's six-type system, and apply enforced runtime type checking across every assignment."
 ---
 
 Every variable in Hades carries an explicit type annotation written directly into its declaration. This static-style discipline means the interpreter can catch type mismatches at runtime before they silently corrupt your data — there are no implicit coercions between unrelated types.
@@ -30,6 +30,8 @@ msg: str  = 'hello';   // string
 
 ## Built-in types
 
+The following type keywords are recognised by the interpreter for variable declarations and type hints:
+
 <CardGroup cols={2}>
   <Card title="nothing" icon="ban">
     Represents the absence of a value. All `nothing` variables are falsy. The only type that does not require an initializer.
@@ -49,10 +51,11 @@ msg: str  = 'hello';   // string
   <Card title="list" icon="list">
     Mutable, ordered sequences of any values enclosed in `[ ]`. An empty list is falsy.
   </Card>
-  <Card title="rec / record" icon="table">
-    Immutable sequences written as a comma-separated string literal: `"a, b, c"`. Cannot be mutated after creation.
-  </Card>
 </CardGroup>
+
+<Note>
+  The Hades language specification also describes a `record` immutable sequence type (written as `"elem0, elem1"` and accessed with `variable"index"`) and a `struct` type. These types are part of the planned language grammar but are **not yet executed by the current interpreter**. Declaring a variable with a `record` or `struct` type hint will produce a parse or runtime error in the current release.
+</Note>
 
 ## Truthiness reference
 
@@ -65,7 +68,6 @@ Hades uses truthiness rules to evaluate non-boolean values in conditions such as
 | `int`     | any non-zero value      | `0`            |
 | `float`   | any non-zero value      | `0.0`          |
 | `str`     | any non-empty string    | `''`           |
-| `record`  | any non-empty record    | `""`           |
 | `list`    | any non-empty list      | `[]`           |
 
 ## Type checking
@@ -91,9 +93,8 @@ active: bool = TRUE;
 // nothing needs no initializer
 placeholder: nothing;
 
-// Complex types
-scores: list   = [95, 87, 92, 78];
-coords: record = "10, 20, 30";
+// List type
+scores: list = [95, 87, 92, 78];
 
 // Use type() to inspect a value at runtime
 print(type(age));     // int

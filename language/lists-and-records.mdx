@@ -1,10 +1,10 @@
 ---
 title: "Lists and Records: Sequential Collection Types in Hades"
 sidebarTitle: "Lists & Records"
-description: "Understand Hades mutable lists and immutable records, index access syntax, iteration, membership testing, and the key differences between them."
+description: "Understand Hades mutable lists, index access with ->, iteration, membership testing with in, and notes on the planned immutable record type."
 ---
 
-Hades provides two sequential collection types with a clear design intent: **lists** are the mutable, workhorse container you reach for most of the time; **records** are immutable snapshots whose contents can never change after creation. Choosing between them is a statement of intent — if data must not change, make it a record.
+Hades provides two sequential collection types: **lists** are the fully-implemented, mutable workhorse container you use for most data; **records** are an immutable sequence type described in the language specification but not yet executed by the current interpreter.
 
 ## Lists
 
@@ -56,7 +56,11 @@ scores: list = [95, 87, 92, 78];
 for (score: int; score in scores) {
     print(score)
 }
-// outputs: 95  87  92  78
+// outputs:
+// 95
+// 87
+// 92
+// 78
 ```
 
 ### Membership testing with `in`
@@ -86,35 +90,37 @@ print(len(scores));   // 4
 
 ## Records
 
-A record is an immutable sequence declared as a comma-separated string literal enclosed in double quotes. Unlike lists, records require no element type hints and cannot be modified after creation.
+<Warning>
+  Records are described in the Hades language specification but are **not yet implemented** in the current interpreter. There is no `RecordNode` in the parser and no record handler in the interpreter. The `rec` type hint keyword listed in the README is also absent from the interpreter's recognised type hints. The syntax below documents the planned design; using it in the current release will produce an error.
+</Warning>
+
+A record is planned as an immutable sequence declared as a comma-separated string literal enclosed in double quotes. Unlike lists, records would require no element type hints and could not be modified after creation.
 
 ```cpp
+// Planned syntax — records are not yet supported by the interpreter
 coords: record = "10, 20, 30";
 weekdays: record = "Mon, Tue, Wed, Thu, Fri";
 ```
 
-### Indexed access
+### Planned indexed access
 
-Record elements are accessed using the variable name followed by the index in double quotes:
+Record elements would be accessed using the variable name followed by the index in double quotes:
 
 ```cpp
+// Planned syntax
 coords: record = "10, 20, 30";
-first: int = coords"0";    // 10
-second: int = coords"1";   // 20
+first: str = coords"0";    // "10"
+second: str = coords"1";   // "20"
 ```
 
 ### Immutability
 
-Attempting to assign to a record element raises a `TypeError`:
+When records are implemented, attempting to assign to a record element will raise a `TypeError`:
 
 ```cpp
-coords: record = "10, 20, 30";
+// Planned behaviour
 coords"0" = 99;   // TypeError — records are immutable
 ```
-
-<Note>
-  If you need a collection whose contents will change, use a `list`. Use a `record` to signal clearly that the data is fixed — configuration values, lookup tables, and coordinate tuples are good candidates.
-</Note>
 
 ## Comparison: list vs. record
 
@@ -122,17 +128,18 @@ coords"0" = 99;   // TypeError — records are immutable
   <Card title="list" icon="list">
     - Declared with `[ ]`
     - Elements accessed via `container->index`
-    - Mutable — elements can be added, removed, or updated
+    - Mutable — elements can be updated
     - Iterable with for-in
     - Works with `in` membership operator
     - `len()` supported
+    - **Fully implemented**
   </Card>
   <Card title="record" icon="lock">
     - Declared as a comma-separated `"string"`
-    - Elements accessed via `container"index"`
-    - Immutable — mutation raises a TypeError
-    - No type annotation required on declaration
-    - Use `rec` as the type hint keyword
+    - Elements accessed via `container"index"` (planned)
+    - Immutable — mutation raises a TypeError (planned)
+    - No element type annotation required
+    - **Not yet implemented in the interpreter**
   </Card>
 </CardGroup>
 
@@ -157,12 +164,8 @@ print('Count: ', len(scores));   // Count: 5
 if (95 in scores) {
     print('Top score present')
 }
-
-// Immutable reference data as a record
-grades: record = "F, D, C, B, A";
-print(grades"4");   // A
 ```
 
 <Tip>
-  Because records are immutable, you can pass them around freely without worrying about unexpected mutations. Think of them as constants for sequential data.
+  Lists are the primary collection type in the current interpreter. Use them for any ordered, mutable data. Record support is planned for a future release.
 </Tip>

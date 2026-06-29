@@ -1,10 +1,10 @@
 ---
 title: "Operators and Expressions: A Complete Hades Reference"
 sidebarTitle: "Operators"
-description: "A complete reference for Hades arithmetic, comparison, logical, bitwise, and assignment operators, including precedence rules and operator overloading."
+description: "A complete reference for Hades arithmetic, comparison, logical, and assignment operators, including precedence rules and notes on planned features."
 ---
 
-Hades provides a rich set of operators drawn from the C family, with a few unique additions such as strict type-equality (`===`), logical XOR (`^^`), and the membership operator (`in`). Operator overloading lets you extend these to work meaningfully on your own class types.
+Hades provides a rich set of operators drawn from the C family, with a few unique additions such as strict type-equality (`===`), logical XOR (`^^`), and the membership operator (`in`).
 
 ## Arithmetic operators
 
@@ -81,7 +81,9 @@ print(TRUE ^^ FALSE);    // TRUE
 
 ## Bitwise operators
 
-Bitwise operators operate on the binary representation of integers and are documented in the language specification.
+<Warning>
+  The following bitwise operators are part of the Hades language specification and are listed in the README, but they are **not yet implemented** in the current interpreter. Using them at runtime will raise an error. They are documented here as planned features.
+</Warning>
 
 | Operation | Syntax |
 |-----------|--------|
@@ -96,20 +98,20 @@ Bitwise operators operate on the binary representation of integers and are docum
 
 All compound assignment operators expand to `variable = variable OP value`.
 
-| Syntax | Equivalent |
-|--------|------------|
-| `a = b` | plain assignment |
-| `a += b` | `a = a + b` |
-| `a -= b` | `a = a - b` |
-| `a *= b` | `a = a * b` |
-| `a /= b` | `a = a / b` |
-| `a %= b` | `a = a % b` |
-| `a &&= b` | `a = a && b` |
-| `a \|\|= b` | `a = a \|\| b` |
-| `a ^^= b` | `a = a ^^ b` |
-| `a &= b` | `a = a & b` |
-| `a \|= b` | `a = a \| b` |
-| `a ^= b` | `a = a ^ b` |
+| Syntax | Equivalent | Status |
+|--------|------------|--------|
+| `a = b` | plain assignment | ✓ implemented |
+| `a += b` | `a = a + b` | ✓ implemented |
+| `a -= b` | `a = a - b` | ✓ implemented |
+| `a *= b` | `a = a * b` | ✓ implemented |
+| `a /= b` | `a = a / b` | ✓ implemented |
+| `a %= b` | `a = a % b` | ✓ implemented |
+| `a &&= b` | `a = a && b` | ✓ implemented |
+| `a \|\|= b` | `a = a \|\| b` | ✓ implemented |
+| `a ^^= b` | `a = a ^^ b` | ✓ implemented |
+| `a &= b` | `a = a & b` | ⚠ planned — lexed but not yet executed |
+| `a \|= b` | `a = a \| b` | ⚠ planned — lexed but not yet executed |
+| `a ^= b` | `a = a ^ b` | ⚠ planned — lexed but not yet executed |
 
 ```cpp
 score: int = 10;
@@ -137,25 +139,18 @@ Operators are evaluated in the following order (highest precedence last in the l
 
 ## Operator overloading
 
+<Warning>
+  Operator overloading is part of the Hades class system. Class and struct execution is **not yet supported** by the current interpreter — class definitions are parsed but not evaluated at runtime. The syntax below reflects the planned grammar; see [Classes & Structs](/language/classes-and-structs) for full details.
+</Warning>
+
 Inside a class, you can redefine how an operator behaves on instances using the `operator` keyword:
 
 ```cpp
-Vector: class {
-    creator Vector(me, x: int, y: int) => nothing {
-        my.x: int = x;
-        my.y: int = y;
-    };
-
-    // Overload the ! operator to check if the vector is zero
-    operator !(me) => bool {
-        if (my.x == 0 && my.y == 0) {
-            => TRUE
-        }
+// Planned syntax — classes are not yet executed by the interpreter
+operator !(me) => bool {
+    if (my.name && my.age && my.year && my.gpa) {
         => FALSE
-    };
+    }
+    => TRUE
 };
 ```
-
-<Tip>
-  Operator overloading is particularly useful for making class instances work naturally in boolean conditions, comparisons, or arithmetic without requiring explicit method calls.
-</Tip>

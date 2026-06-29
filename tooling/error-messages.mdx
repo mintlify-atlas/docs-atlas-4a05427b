@@ -11,7 +11,7 @@ When Hades encounters a problem it prints a richly formatted diagnostic that tel
 Every error follows the same visual structure, produced by the `f_error` function in `helpers.py`:
 
 ```
--- SyntaxError/Runtime error ------------------------
+-- Syntax Error ------------------------
 Error: <message>
 Line N:
       <source line, underlined>
@@ -36,15 +36,15 @@ Syntax errors are raised either by the **Lexer** (during tokenisation) or the **
     Triggered when the lexer encounters a character it does not recognise.
 
     ```cpp
-    int x = 10 @ 2;
+    x: int = 10 @ 2;
     ```
 
     ```
     -- Syntax Error ------------------------
     Error: Unexpected character: @
     Line 1:
-          int x = 10 @ 2;
-                     ^
+          x: int = 10 @ 2;
+                       ^
     ----------------------------------------
     ```
   </Step>
@@ -52,15 +52,15 @@ Syntax errors are raised either by the **Lexer** (during tokenisation) or the **
     Raised when a string opened with `'` reaches end-of-file without a closing `'`.
 
     ```cpp
-    str name = 'Hades;
+    name: str = 'Hades;
     ```
 
     ```
     -- Syntax Error ------------------------
     Error: Unterminated string literal
     Line 1:
-          str name = 'Hades;
-                     ^
+          name: str = 'Hades;
+                      ^
     ----------------------------------------
     ```
   </Step>
@@ -68,15 +68,15 @@ Syntax errors are raised either by the **Lexer** (during tokenisation) or the **
     Raised when a numeric literal contains more than one decimal point.
 
     ```cpp
-    float x = 3.14.15;
+    x: float = 3.14.15;
     ```
 
     ```
     -- Syntax Error ------------------------
     Error: Invalid float
     Line 1:
-          float x = 3.14.15;
-                        ^
+          x: float = 3.14.15;
+                         ^
     ----------------------------------------
     ```
   </Step>
@@ -89,15 +89,15 @@ Syntax errors are raised either by the **Lexer** (during tokenisation) or the **
     Every statement that is not a block (`{}`) must end with a semicolon.
 
     ```cpp
-    int x = 5
-    int y = 10;
+    x: int = 5
+    y: int = 10;
     ```
 
     ```
     -- Syntax Error ------------------------
     Error: Expected ';' to terminate the statement, but found 'int'
     Line 2:
-          int y = 10;
+          y: int = 10;
           ^
     ----------------------------------------
     ```
@@ -106,14 +106,14 @@ Syntax errors are raised either by the **Lexer** (during tokenisation) or the **
     A parenthesised expression or function call was not closed.
 
     ```cpp
-    int result = (10 + 5;
+    result: int = (10 + 5;
     ```
 
     ```
     -- Syntax Error ------------------------
     Error: Expected ')' to close the expression, but found ';'
     Line 1:
-          int result = (10 + 5;
+          result: int = (10 + 5;
                                ^
     ----------------------------------------
     ```
@@ -125,14 +125,14 @@ Syntax errors are raised either by the **Lexer** (during tokenisation) or the **
     if (TRUE) {
         print('ok');
     
-    int x = 1;
+    x: int = 1;
     ```
 
     ```
     -- Syntax Error ------------------------
     Error: Expected '}' to close the block, but found 'int'
     Line 4:
-          int x = 1;
+          x: int = 1;
           ^
     ----------------------------------------
     ```
@@ -165,15 +165,15 @@ Runtime errors (`InterpreterError`) occur during execution. They carry the sourc
 Raised when you read a variable name that has not been declared in the current scope.
 
 ```cpp
-int result = total + 1;
+result: int = total + 1;
 ```
 
 ```
 -- Runtime error ------------------------
 Error: Undefined variable 'total'
 Line 1:
-      int result = total + 1;
-                   ^
+      result: int = total + 1;
+                    ^
 ----------------------------------------
 ```
 
@@ -182,7 +182,7 @@ Line 1:
 When the interpreter cannot find a variable it uses `difflib.get_close_matches` to search all variables currently in scope and suggest the closest match. The cutoff similarity threshold is `0.6`.
 
 ```cpp
-int counter = 0;
+counter: int = 0;
 counter = couner + 1;
 ```
 
@@ -219,7 +219,7 @@ Line 1:
 Declare the variable first:
 
 ```cpp
-int score = 0;
+score: int = 0;
 score = 100;
 ```
 
@@ -228,15 +228,15 @@ score = 100;
 Raised for both `/` and `%` operations when the right-hand side evaluates to zero.
 
 ```cpp
-int x = 10 / 0;
+x: int = 10 / 0;
 ```
 
 ```
 -- Runtime error ------------------------
 Error: Division by zero
 Line 1:
-      int x = 10 / 0;
-                 ^
+      x: int = 10 / 0;
+                  ^
 ----------------------------------------
 ```
 
@@ -245,15 +245,15 @@ Line 1:
 Raised when an operator is applied to incompatible types, such as adding a number to a string.
 
 ```cpp
-int x = 5 + 'hello';
+x: int = 5 + 'hello';
 ```
 
 ```
 -- Runtime error ------------------------
 Error: Invalid operand types for PLUS: int and str
 Line 1:
-      int x = 5 + 'hello';
-                ^
+      x: int = 5 + 'hello';
+                 ^
 ----------------------------------------
 ```
 
@@ -262,16 +262,16 @@ Line 1:
 Raised when you access an index that does not exist in the list.
 
 ```cpp
-list nums = [1, 2, 3];
-int val = nums -> 10;
+nums: list = [1, 2, 3];
+val: int = nums -> 10;
 ```
 
 ```
 -- Runtime error ------------------------
 Error: List index 10 out of range (length 3)
 Line 2:
-      int val = nums -> 10;
-                     ^
+      val: int = nums -> 10;
+                      ^
 ----------------------------------------
 ```
 
@@ -280,15 +280,15 @@ Line 2:
 Raised when a value assigned to a typed variable does not match the declared type hint.
 
 ```cpp
-int count = 'five';
+count: int = 'five';
 ```
 
 ```
 -- Runtime error ------------------------
 Error: Type mismatch for 'count': expected int, but got str
 Line 1:
-      int count = 'five';
-          ^
+      count: int = 'five';
+      ^
 ----------------------------------------
 ```
 
@@ -303,15 +303,15 @@ func add(a: int, b: int) => int {
     => a + b;
 }
 
-int result = add(1, 2, 3);
+result: int = add(1, 2, 3);
 ```
 
 ```
 -- Runtime error ------------------------
 Error: 'add' expects 2 arguments, but got 3
 Line 5:
-      int result = add(1, 2, 3);
-                   ^
+      result: int = add(1, 2, 3);
+                    ^
 ----------------------------------------
 ```
 
@@ -320,7 +320,7 @@ Line 5:
 Raised when you attempt to call a variable as if it were a function.
 
 ```cpp
-int x = 42;
+x: int = 42;
 x();
 ```
 
@@ -338,7 +338,7 @@ Line 2:
 Raised when a `for … in` loop is given a value that is neither a `list` nor a `str`.
 
 ```cpp
-int n = 5;
+n: int = 5;
 for (i: int; i in n) {
     print(i);
 }
@@ -349,7 +349,7 @@ for (i: int; i in n) {
 Error: Cannot iterate over type 'int'
 Line 2:
       for (i: int; i in n) {
-                        ^
+                       ^
 ----------------------------------------
 ```
 
@@ -388,7 +388,7 @@ Line 5:
 | Expected `'}'` | Parser | Unclosed block body |
 | Unterminated block | Parser | EOF inside a `{...}` block |
 | Undefined variable | Runtime | Variable read before declaration |
-| Cannot assign to undeclared | Runtime | Assignment without prior `type name = …` declaration |
+| Cannot assign to undeclared | Runtime | Assignment without prior `name: type = …` declaration |
 | Division by zero | Runtime | Divisor evaluates to `0` |
 | Invalid operand types | Runtime | Operator used on incompatible types |
 | List index out of range | Runtime | Index `≥ len(list)` or `< -len(list)` |

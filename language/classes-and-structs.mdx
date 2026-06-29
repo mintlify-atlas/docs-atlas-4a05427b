@@ -1,10 +1,14 @@
 ---
 title: "Classes and Structs: Defining Custom Object Types in Hades"
 sidebarTitle: "Classes & Structs"
-description: "Explore Hades classes with creators, methods, and operator overloading, plus lightweight structs for aggregating typed fields into a single variable."
+description: "Explore the planned Hades class and struct syntax, including creators, methods, and operator overloading, with notes on current interpreter support."
 ---
 
-Hades provides two ways to bundle related data together: **classes**, which combine data and behaviour with support for constructors, instance methods, and operator overloading; and **structs**, which are lightweight named field aggregates with no behaviour of their own.
+Hades defines two ways to bundle related data together: **classes**, which combine data and behaviour with support for constructors, instance methods, and operator overloading; and **structs**, which are lightweight named field aggregates with no behaviour of their own.
+
+<Warning>
+  Class and struct definitions are part of the Hades language specification and grammar, but **runtime execution of class and struct definitions is not yet supported by the current interpreter**. The `ClassDefNode` and related AST nodes exist and the parser can describe the grammar, but there is no corresponding handler in the interpreter's node-handler table. Code using `class` or `struct` keywords will not execute correctly in the current release. The syntax documented on this page reflects the planned language design.
+</Warning>
 
 ## Classes
 
@@ -13,6 +17,7 @@ A class definition opens with the class name, a colon, the `class` keyword, and 
 ### Defining a class
 
 ```cpp
+// Planned syntax — class execution is not yet supported by the interpreter
 Student: class {
     creator Student(me, name: str, age: int, year: int, gpa: float) => nothing {
         my.name: str = name;
@@ -65,6 +70,7 @@ my.age++;
 To instantiate a class, write the class name followed by `{ }` containing the constructor arguments (in order, no labels):
 
 ```cpp
+// Planned syntax — class instantiation is not yet supported by the interpreter
 Alice: Student = Student{
     'Alice',
     20,
@@ -92,6 +98,7 @@ Invoke overloaded operators directly:
 Any unary or binary operator can be overloaded per-class using the `operator` keyword followed by the operator symbol and a function signature:
 
 ```cpp
+// Planned syntax — operator overloading requires class execution support
 operator !(me) => bool {
     // returns TRUE if the instance is considered "empty"
     if (my.name && my.age && my.year && my.gpa) {
@@ -108,6 +115,7 @@ A struct is a pure data container — a named schema of typed fields with no met
 ### Defining a struct
 
 ```cpp
+// Planned syntax — struct execution is not yet supported by the interpreter
 Student: struct = {
     age:        int;
     id:         int;
@@ -120,17 +128,19 @@ Fields are separated by semicolons inside the definition block.
 
 ### Creating struct instances
 
-Hades supports two instantiation styles:
+Hades plans to support two instantiation styles:
 
 <Tabs>
   <Tab title="Positional">
     ```cpp
+    // Planned syntax
     Alice: struct<Student> = {21, 82911, 'UMass Amherst', 3.712};
     ```
     Values are assigned to fields in the order they were declared in the struct definition.
   </Tab>
   <Tab title="Named">
     ```cpp
+    // Planned syntax
     Bob: struct<Student> = {
         age        = 20,
         id         = 278925,
@@ -152,6 +162,6 @@ Hades supports two instantiation styles:
 | Instance keyword | `my.` | field names |
 | Type annotation on instance | `ClassName` | `struct<StructName>` |
 
-<Tip>
-  Prefer a **struct** when you simply need to pass a bundle of values around and all behaviour lives in standalone functions. Reach for a **class** when the data and its operations are inseparable, or when you want natural operator semantics.
-</Tip>
+<Note>
+  Both classes and structs are planned features of the Hades type system. Follow the project repository for updates on interpreter support.
+</Note>

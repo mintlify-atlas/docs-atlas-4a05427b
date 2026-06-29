@@ -1,5 +1,5 @@
 ---
-title: "Hades Interpreter Architecture and Module Layout"
+title: "Hades Architecture: Pipeline Stages and Module Layout"
 sidebarTitle: "Architecture"
 description: "A complete guide to Hades's three-phase pipeline — Lexer, Parser, Interpreter — and how every module fits together into a working language runtime."
 ---
@@ -77,7 +77,7 @@ Hades is a tree-walk interpreter built entirely in Python. Source code in `.hds`
   </Card>
 
   <Card title="modules/ast_nodes.py" icon="diagram-project">
-    All AST node dataclasses live here — literals, operations, control-flow nodes, `FuncNode`, `ProgramNode`, and the runtime objects `HadesFunction`, `HadesClass`, and `HadesInstance`. Each dataclass carries a reference to the originating `Token` so the interpreter can report accurate source positions.
+    All AST node dataclasses live here — literals, operations, control-flow nodes, `FuncNode`, `ProgramNode`. Each AST dataclass carries a reference to the originating `Token` so the interpreter can report accurate source positions. The runtime objects `HadesFunction`, `HadesClass`, and `HadesInstance` also live in this file; they are created at evaluation time and are not AST nodes.
   </Card>
 
   <Card title="modules/tokens.py" icon="tag">
@@ -85,7 +85,7 @@ Hades is a tree-walk interpreter built entirely in Python. Source code in `.hds`
   </Card>
 
   <Card title="modules/scope.py" icon="layer-group">
-    The `Scope` class: a `dict`-backed variable environment with `get()`, `set()`, `declare()`, and `has()` methods. `get()` and `set()` both walk the `parent` chain automatically, so inner scopes can read and mutate variables declared in outer scopes.
+    The `Scope` class: a `dict`-backed variable environment with `get()`, `set()`, `declare()`, and `has()` methods. `get()` and `set()` both walk the `parent` chain automatically, so inner scopes can read and mutate variables declared in outer scopes. `has()` checks the **current scope only** and does not walk the parent chain.
   </Card>
 
   <Card title="modules/helpers.py" icon="wrench">

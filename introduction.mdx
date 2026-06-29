@@ -90,6 +90,10 @@ Alice.AgeUp();
 print(Alice.age)
 ```
 
+<Warning>
+  Class and struct syntax is defined in the Hades grammar and AST, but interpreter execution of class and struct definitions is not yet wired up. Running class or struct code will raise a runtime error until this support is completed.
+</Warning>
+
 ### Structs
 
 Structs aggregate multiple named fields of potentially different types into a single value. They are defined as a template and instantiated separately, either positionally or by name:
@@ -108,14 +112,12 @@ named:  struct<Point> = { x = 1.5, y = 2.0 };
 
 Hades provides two sequence types:
 
-- **`list`** — a mutable sequence accessed with the `->` index operator (`scores->0`).
-- **`record`** — an immutable sequence defined with double-quoted comma-separated values (`"a, b, c"`), accessed with `record"index"`. Attempting to mutate a record raises a `TypeError`.
+- **`list`** — a mutable sequence accessed with the `->` index operator (`scores->0`). The `list` type hint is fully implemented.
+- **`record`** — an immutable sequence defined with double-quoted comma-separated values (`"a, b, c"`), accessed with `record"index"`. Attempting to mutate a record raises a `TypeError`. Records are described in the language grammar but do not yet have a type-hint token in the interpreter; record syntax is planned for a future release.
 
 ```cpp
 scores: list = [95, 87, 92];
 first: int = scores->0;
-
-coords: rec = "10, 20, 30";
 ```
 
 ### Control Flow
@@ -130,7 +132,7 @@ Hades supports a full suite of control flow constructs:
 | C-style for loop | `for (i: int = 0; i < n; i++) { }` |
 | For-in loop | `for (x: int; x in list) { }` |
 
-Additional keywords include `break` (exit a loop), `next` (skip to the next iteration), and `_goTo label` (jump to a named label).
+The grammar also documents `break` (exit a loop), `next` (skip to the next iteration), and `_goTo label` (jump to a named label), but these keywords are not yet tokenised or handled by the interpreter — they are planned for a future release.
 
 ### Built-in Functions
 
