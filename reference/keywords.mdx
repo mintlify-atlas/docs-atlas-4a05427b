@@ -1,0 +1,374 @@
+---
+title: "Hades Language Keywords: A Complete Reference Guide"
+sidebarTitle: "Keywords"
+description: "Every reserved keyword in Hades organized by purpose — type hints, literals, control flow, functions, and classes — with syntax and code examples."
+---
+
+Hades reserves a set of identifiers as keywords that carry fixed syntactic meaning and cannot be used as variable or function names. They are case-sensitive: `int` is a type hint keyword, but `Int` would be treated as a plain identifier. The sections below cover every keyword in the language, grouped by the role it plays.
+
+---
+
+## Type Hints
+
+Type hints appear in variable declarations, function parameters, and return types. Every variable must carry a type hint at the point of declaration; Hades enforces these at runtime.
+
+<Note>
+Type hints do **not** perform implicit conversion. Assigning a value of the wrong type raises an `InterpreterError`. Use explicit casting if a conversion is needed.
+</Note>
+
+The full syntax for a variable declaration is:
+
+```cpp
+name: type_hint = expression;
+```
+
+### `int`
+
+Declares a variable that holds a whole-number integer value.
+
+```cpp
+age: int = 25;
+count: int = 0;
+count += 1;
+```
+
+### `float`
+
+Declares a variable that holds a floating-point (decimal) value.
+
+```cpp
+pi: float = 3.14159;
+ratio: float = 1.0;
+```
+
+### `bool`
+
+Declares a variable that holds a boolean value (`TRUE` or `FALSE`).
+
+```cpp
+is_active: bool = TRUE;
+has_error: bool = FALSE;
+```
+
+### `str`
+
+Declares a variable that holds a string. String literals are delimited with single quotes (`'`). Escape sequences `\n`, `\t`, and `\\` are supported.
+
+```cpp
+greeting: str = 'Hello, world!';
+path: str = 'line1\nline2';
+```
+
+### `nothing`
+
+Declares a variable with no initial value. A `nothing` variable holds the `nothing` value (equivalent to `null`/`None` in other languages). It is the **only** type hint that does not require an initializer.
+
+```cpp
+result: nothing;
+print(result);    // nothing
+```
+
+### `list`
+
+Declares a mutable ordered list. Elements are enclosed in square brackets and separated by commas. Individual elements are accessed with the `->` index operator.
+
+```cpp
+scores: list = [10, 20, 30];
+first: int = scores -> 0;   // 10
+```
+
+---
+
+## Literals
+
+### `TRUE` / `FALSE`
+
+Boolean literal values. Both are uppercase. They evaluate directly to the Hades `bool` type.
+
+<Warning>
+`true` and `false` (lowercase) are **not** keywords in Hades and will be interpreted as plain identifiers. Always use `TRUE` and `FALSE`.
+</Warning>
+
+```cpp
+flag: bool = TRUE;
+
+if (flag) {
+    print('flag is truthy');
+}
+
+if (!FALSE) {
+    print('negating FALSE gives TRUE');
+}
+```
+
+---
+
+## Control Flow
+
+Control-flow keywords govern how execution branches and loops.
+
+### `if` / `else`
+
+Conditional branching. The condition must be wrapped in parentheses. Any number of `else if` chains may follow, with an optional trailing `else`.
+
+```cpp
+score: int = 72;
+
+if (score >= 90) {
+    print('A');
+} else if (score >= 80) {
+    print('B');
+} else if (score >= 70) {
+    print('C');
+} else {
+    print('F');
+}
+// prints: C
+```
+
+### `while`
+
+Evaluates a condition before each iteration. The loop body runs zero or more times.
+
+```cpp
+i: int = 0;
+while (i < 5) {
+    print(i);
+    i++;
+}
+// prints: 0 1 2 3 4
+```
+
+### `do` … `while`
+
+Executes the body **first**, then checks the condition. Guarantees at least one execution.
+
+```cpp
+i: int = 0;
+do {
+    print(i);
+    i++
+} while (i < 3);
+// prints: 0 1 2
+```
+
+### `for`
+
+A traditional C-style loop with an initializer, condition, and update expression, all separated by semicolons.
+
+```cpp
+for (i: int = 0; i < 4; i++) {
+    print(i);
+}
+// prints: 0 1 2 3
+```
+
+### `for` … `in`
+
+Iterates over every element of a `list` or every character of a `str`. The loop variable receives a type hint that Hades enforces on each iteration.
+
+```cpp
+for (n: int; n in [10, 20, 30]) {
+    print(n);
+}
+// prints: 10 20 30
+
+for (ch: str; ch in 'abc') {
+    print(ch);
+}
+// prints: a b c
+```
+
+### `in`
+
+Used as a binary comparison operator to test membership. Returns `TRUE` if the left-hand value is found inside the right-hand list or string. Also used syntactically inside `for`-in loop headers (see above).
+
+```cpp
+found: bool = 3 in [1, 2, 3];    // TRUE
+has_a: bool = 'a' in 'cat';       // TRUE
+missing: bool = 5 in [1, 2, 3];  // FALSE
+```
+
+### `next`
+
+Skips the remainder of the current loop body and jumps to the next iteration. In a `for` loop, the update expression (`i++`) still runs. In a `while` loop, execution resumes at the condition check.
+
+```cpp
+for (i: int = 0; i < 5; i++) {
+    if (i == 2) {
+        next;
+    }
+    print(i);
+}
+// prints: 0 1 3 4
+```
+
+### `break`
+
+Exits the innermost enclosing loop immediately, skipping any remaining iterations.
+
+```cpp
+i: int = 0;
+while (TRUE) {
+    if (i == 3) {
+        break;
+    }
+    print(i);
+    i++
+}
+// prints: 0 1 2
+```
+
+### `_goTo` and Labels (`LABEL:`)
+
+Unconditionally transfers execution to a named label defined elsewhere in the same scope. Labels are identifiers followed by a colon (`:`). This is a low-level control mechanism — prefer loops and functions for most use cases.
+
+<Warning>
+`_goTo` bypasses the normal structured control flow. Jumping into the middle of a loop or conditional block can cause unpredictable behaviour. Use sparingly.
+</Warning>
+
+```cpp
+i: int = 0;
+
+LOOP:
+print(i);
+i++;
+if (i < 3) {
+    _goTo LOOP;
+}
+// prints: 0 1 2
+
+if (i == 3) {
+    _goTo END;
+}
+
+print('this line is skipped');
+
+END:
+print('done');
+```
+
+---
+
+## Functions
+
+### `func`
+
+Declares a named function. The signature specifies parameter names with their type hints, and `=>` is followed by the return type hint. The body is enclosed in braces.
+
+```cpp
+func add(a: int, b: int) => int {
+    => a + b;
+}
+
+result: int = add(3, 4);
+print(result);    // 7
+```
+
+Functions with no return value use `nothing` as the return type:
+
+```cpp
+func greet(name: str) => nothing {
+    print('Hello, ', name);
+}
+
+greet('Hades');   // Hello, Hades
+```
+
+### `=>` (Return)
+
+Returns a value from a function. When used after `func … =>` in a signature it specifies the return type; when used as a statement inside a function body it returns the given expression and exits the function.
+
+```cpp
+func clamp(val: int, lo: int, hi: int) => int {
+    if (val < lo) { => lo }
+    if (val > hi) { => hi }
+    => val
+}
+
+print(clamp(15, 0, 10));   // 10
+print(clamp(-5, 0, 10));   // 0
+```
+
+To return early with no value from a `nothing`-returning function, write `=> nothing`:
+
+```cpp
+func early_exit(flag: bool) => nothing {
+    if (flag) {
+        => nothing;
+    }
+    print('not skipped');
+}
+```
+
+---
+
+## Classes
+
+<Note>
+Class syntax is defined in the grammar and token set. Full runtime support for classes is under active development.
+</Note>
+
+### `class`
+
+Declares a class — a template for objects that can hold data fields and methods.
+
+```cpp
+Student: class {
+    creator Student(me, name: str, age: int) => nothing {
+        my.name: str = name;
+        my.age: int = age;
+    };
+
+    method greet(me) => nothing {
+        print('Hi, I am ', my.name);
+    };
+};
+```
+
+### `creator`
+
+Defines the constructor of a class, called automatically when an instance is created. The creator always shares the same name as the class. The first parameter, conventionally named `me`, represents the instance being constructed.
+
+```cpp
+creator Student(me, name: str, age: int) => nothing {
+    my.name: str = name;
+    my.age: int = age;
+}
+```
+
+### `method`
+
+Defines an instance method on a class. Like creators, the first parameter is the instance reference (`me`), and `my` is used to access instance fields.
+
+```cpp
+method describe(me) => str {
+    => my.name;
+}
+```
+
+### `operator`
+
+Allows a class to overload a built-in operator for its instances. The operator symbol follows the keyword.
+
+```cpp
+operator !(me) => bool {
+    if (my.name && my.age) { => FALSE }
+    => TRUE
+}
+```
+
+### `my`
+
+A special qualifier used inside `creator`, `method`, and `operator` blocks to access instance variables and methods of the current object — analogous to `this` in C++ or `self` in Python.
+
+```cpp
+creator Point(me, x: int, y: int) => nothing {
+    my.x: int = x;
+    my.y: int = y;
+}
+
+method sum(me) => int {
+    => my.x + my.y;
+}
+```

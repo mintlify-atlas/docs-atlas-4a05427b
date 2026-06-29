@@ -1,0 +1,105 @@
+---
+title: "Declaring Variables and Data Types in the Hades Language"
+sidebarTitle: "Variables & Types"
+description: "Learn how to declare variables, understand Hades's seven-type system, and apply enforced runtime type checking across every assignment."
+---
+
+Every variable in Hades carries an explicit type annotation written directly into its declaration. This static-style discipline means the interpreter can catch type mismatches at runtime before they silently corrupt your data — there are no implicit coercions between unrelated types.
+
+## Declaration syntax
+
+The general form of a variable declaration is:
+
+```cpp
+name: type = value;
+```
+
+The name comes first, followed by a colon, then the type keyword, then an assignment and an initial value. The one exception to mandatory initialisation is the `nothing` type — a `nothing` variable may be declared without a value because `nothing` *is* the value.
+
+```cpp
+foo: nothing;          // valid — no initializer needed
+bar: bool = FALSE;     // boolean
+baz: int  = 42;        // integer
+qux: float = 3.14;     // floating-point
+msg: str  = 'hello';   // string
+```
+
+<Note>
+  Semicolons are required after most statements. The two exceptions are: immediately after a closing `}`, and at the very end of a block just before its own `}`.
+</Note>
+
+## Built-in types
+
+<CardGroup cols={2}>
+  <Card title="nothing" icon="ban">
+    Represents the absence of a value. All `nothing` variables are falsy. The only type that does not require an initializer.
+  </Card>
+  <Card title="bool" icon="toggle-on">
+    Boolean logic. Literal values are `TRUE` and `FALSE` (uppercase). Any non-`FALSE` boolean is truthy.
+  </Card>
+  <Card title="int" icon="hashtag">
+    Whole numbers: `0`, `1234`, `-7`. Zero is falsy; any other integer is truthy.
+  </Card>
+  <Card title="float" icon="percent">
+    Floating-point numbers: `1234.5678`. Zero (`0.0`) is falsy; all other floats are truthy.
+  </Card>
+  <Card title="str" icon="font">
+    Single-quoted strings: `'hello'`. An empty string `''` is falsy; non-empty strings are truthy.
+  </Card>
+  <Card title="list" icon="list">
+    Mutable, ordered sequences of any values enclosed in `[ ]`. An empty list is falsy.
+  </Card>
+  <Card title="rec / record" icon="table">
+    Immutable sequences written as a comma-separated string literal: `"a, b, c"`. Cannot be mutated after creation.
+  </Card>
+</CardGroup>
+
+## Truthiness reference
+
+Hades uses truthiness rules to evaluate non-boolean values in conditions such as `if` guards and `while` tests.
+
+| Type      | Truthy                  | Falsy          |
+|-----------|-------------------------|----------------|
+| `nothing` | —                       | always         |
+| `bool`    | `TRUE`                  | `FALSE`        |
+| `int`     | any non-zero value      | `0`            |
+| `float`   | any non-zero value      | `0.0`          |
+| `str`     | any non-empty string    | `''`           |
+| `record`  | any non-empty record    | `""`           |
+| `list`    | any non-empty list      | `[]`           |
+
+## Type checking
+
+The interpreter enforces the declared type at the point of assignment. Declaring a variable with one type and providing a value of another raises a runtime `InterpreterError`:
+
+```cpp
+count: int = 3.14;   // Error — expected int, got float
+flag: bool = 1;      // Error — expected bool, got int
+```
+
+The same check applies to function parameters and return values, so every variable in scope can be trusted to hold exactly the type it was declared with.
+
+## Complete example
+
+```cpp
+// Primitive declarations
+name: str   = 'Alice';
+age:  int   = 20;
+gpa:  float = 3.712;
+active: bool = TRUE;
+
+// nothing needs no initializer
+placeholder: nothing;
+
+// Complex types
+scores: list   = [95, 87, 92, 78];
+coords: record = "10, 20, 30";
+
+// Use type() to inspect a value at runtime
+print(type(age));     // int
+print(type(scores));  // list
+```
+
+<Tip>
+  Use the built-in `type(value)` function to inspect a variable's type at runtime. It returns the type name as a string, which is especially helpful when debugging dynamic list contents.
+</Tip>

@@ -1,0 +1,281 @@
+---
+title: "Hades Operator Precedence and Associativity Reference"
+sidebarTitle: "Precedence"
+description: "Full ranked table of every Hades operator group, lowest to highest precedence, with associativity rules and examples of how grouping affects evaluation."
+---
+
+When an expression contains more than one operator, Hades must decide which operations to perform first. That decision is controlled by two properties: **precedence** (which operator binds more tightly) and **associativity** (how operators of equal precedence chain together). The table below lists all operator groups from lowest precedence (level 1) to highest (level 10), exactly as encoded in the parser's `BINARY_PRECEDENCE` table and the language grammar.
+
+<Note>
+Higher-numbered levels bind **more tightly**. An expression like `a + b * c` is parsed as `a + (b * c)` because `*` (level 6) outranks `+` (level 5). Use parentheses to override the default grouping.
+</Note>
+
+---
+
+## Precedence Table
+
+| Level | Group | Operators | Associativity |
+|-------|-------|-----------|---------------|
+| 1 | Assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&&=`, `\|\|=`, `^^=` | Right |
+| 2 | Logical OR / XOR | `\|\|`, `^^` | Left |
+| 3 | Logical AND | `&&` | Left |
+| 4 | Equality | `==`, `!=`, `===`, `!==` | Left |
+| 5 | Comparison | `<`, `>`, `<=`, `>=`, `in` | Left |
+| 6 | Additive | `+`, `-` | Left |
+| 7 | Multiplicative | `*`, `/`, `%` | Left |
+| 8 | Unary (prefix) | `!`, `-`, `+` | Right (recursive) |
+| 9 | Postfix | `++`, `--` | Left |
+| 10 | Primary | literals, identifiers, `(expr)`, calls, `->` indexing | — |
+
+---
+
+## Level-by-Level Reference
+
+<Accordion title="Level 1 — Assignment (lowest precedence)">
+
+Assignment is **right-associative** and has the lowest precedence of all operators, meaning the entire right-hand side is evaluated first.
+
+Operators: `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&&=`, `||=`, `^^=`
+
+```cpp
+// Simple assignment
+x: int = 5;
+
+// Compound assignments are syntactic sugar
+x += 3;    // x = x + 3  → 8
+x -= 2;    // x = x - 2  → 6
+x *= 4;    // x = x * 4  → 24
+x /= 6;    // x = x / 6  → 4
+x %= 3;    // x = x % 3  → 1
+
+// Logical compound assignments
+flag: bool = TRUE;
+flag &&= FALSE;   // flag = flag && FALSE  → FALSE
+flag ||= TRUE;    // flag = flag || TRUE   → TRUE
+flag ^^= TRUE;    // flag = flag ^^ TRUE   → FALSE
+```
+
+Because assignment is right-associative, chained assignments (where supported) evaluate right-to-left:
+
+```cpp
+// The right-hand side is fully evaluated before any assignment occurs
+a: int = 0;
+a = a + 1;   // a → 1; the '+ 1' expression is evaluated before assignment
+```
+
+</Accordion>
+
+<Accordion title="Level 2 — Logical OR and XOR">
+
+Operators: `||` (OR), `^^` (XOR)
+
+Both operators share precedence level 2 and are left-associative. They evaluate operands using **truthiness** — any non-zero, non-empty, non-`nothing` value is treated as `TRUE`.
+
+```cpp
+// OR: TRUE if at least one operand is truthy
+TRUE || FALSE;    // TRUE
+FALSE || FALSE;   // FALSE
+1 || 0;           // TRUE
+
+// XOR: TRUE if exactly one operand is truthy
+TRUE ^^ FALSE;    // TRUE
+TRUE ^^ TRUE;     // FALSE
+FALSE ^^ FALSE;   // FALSE
+
+// Mixed: || and ^^ have the same precedence, left-associative
+TRUE || FALSE ^^ TRUE;
+// parsed as: (TRUE || FALSE) ^^ TRUE  →  TRUE ^^ TRUE  →  FALSE
+```
+
+</Accordion>
+
+<Accordion title="Level 3 — Logical AND">
+
+Operator: `&&`
+
+AND binds more tightly than OR/XOR, so `a || b && c` is parsed as `a || (b && c)`.
+
+```cpp
+TRUE && TRUE;     // TRUE
+TRUE && FALSE;    // FALSE
+FALSE && TRUE;    // FALSE
+
+// Precedence over ||
+FALSE || TRUE && FALSE;
+// parsed as: FALSE || (TRUE && FALSE)  →  FALSE || FALSE  →  FALSE
+```
+
+</Accordion>
+
+<Accordion title="Level 4 — Equality">
+
+Operators: `==`, `!=`, `===`, `!==`
+
+`==` and `!=` compare values only; `===` and `!==` compare both **type and value**.
+
+```cpp
+1 == 1;        // TRUE
+1 == 1.0;      // TRUE  (value comparison; int 1 equals float 1.0 in Python)
+1 === 1.0;     // FALSE (type mismatch: int vs float)
+1 !== 1.0;     // TRUE
+
+'abc' == 'abc';   // TRUE
+'abc' != 'xyz';   // TRUE
+TRUE == TRUE;     // TRUE
+TRUE === TRUE;    // TRUE
+```
+
+</Accordion>
+
+<Accordion title="Level 5 — Comparison and Membership">
+
+Operators: `<`, `>`, `<=`, `>=`, `in`
+
+The `in` operator tests whether the left-hand value is contained in the right-hand list or string.
+
+```cpp
+3 < 5;           // TRUE
+5 >= 5;          // TRUE
+10 > 20;         // FALSE
+
+// Membership with in
+3 in [1, 2, 3];      // TRUE
+'ab' in 'xabz';      // TRUE
+7 in [1, 2, 3];      // FALSE
+
+// Precedence: comparison binds above additive
+2 + 3 > 4;
+// parsed as: (2 + 3) > 4  →  5 > 4  →  TRUE
+```
+
+</Accordion>
+
+<Accordion title="Level 6 — Additive">
+
+Operators: `+`, `-`
+
+Left-associative. `+` also concatenates strings.
+
+```cpp
+10 + 3;         // 13
+10 - 3;         // 7
+
+// Left-associative chaining
+10 - 3 - 2;     // (10 - 3) - 2  →  5
+
+// Precedence: additive binds above assignment, below multiplicative
+x: int = 2 + 3 * 4;
+// parsed as: 2 + (3 * 4)  →  14
+```
+
+</Accordion>
+
+<Accordion title="Level 7 — Multiplicative">
+
+Operators: `*`, `/`, `%`
+
+Left-associative. These bind more tightly than `+` and `-`.
+
+```cpp
+6 * 4;          // 24
+10 / 4;         // 2.5  (Python float division)
+10 % 3;         // 1    (remainder)
+
+// Left-associative chaining
+12 / 4 / 3;     // (12 / 4) / 3  →  1.0
+```
+
+</Accordion>
+
+<Accordion title="Level 8 — Unary Prefix">
+
+Operators: `!` (logical NOT), `-` (negation), `+` (absolute value)
+
+Unary operators are right-recursive, meaning `!!x` is `!(!x)`.
+
+```cpp
+!TRUE;     // FALSE
+!FALSE;    // TRUE
+!0;        // TRUE  (0 is falsy)
+!1;        // FALSE (1 is truthy)
+
+-5;        // -5
+--5;       // -(-5)  →  5  (double negation, not decrement)
+
++(-10);    // 10  (unary + is absolute value)
++7;        // 7
+```
+
+</Accordion>
+
+<Accordion title="Level 9 — Postfix (++ and --)">
+
+Operators: `++`, `--`
+
+Postfix increment and decrement have very high precedence and update the variable **in place**. The expression evaluates to the **old** value before the update is applied.
+
+```cpp
+i: int = 5;
+i++;    // i is now 6; expression value was 5
+i--;    // i is now 5; expression value was 6
+```
+
+</Accordion>
+
+<Accordion title="Level 10 — Primary (highest precedence)">
+
+Highest-precedence constructs include: numeric and string literals, boolean literals, identifiers, function calls (`name(args)`), list indexing (`list -> index`), and parenthesized sub-expressions.
+
+Parentheses can be used anywhere to force a specific grouping:
+
+```cpp
+(2 + 3) * 4;     // 20  (parentheses override multiplicative precedence)
+2 + (3 * 4);     // 14  (same as default)
+
+scores: list = [10, 20, 30];
+scores -> 1;     // 20  (index access)
+
+len('hello');    // 5   (function call)
+```
+
+</Accordion>
+
+---
+
+## Worked Examples
+
+Understanding precedence prevents subtle bugs. The examples below show common cases where the default grouping may be surprising.
+
+```cpp
+// Example 1: logical compound over comparison
+a: int = 5;
+b: int = 3;
+c: int = 7;
+
+a > b && b < c;
+// parsed as: (a > b) && (b < c)
+// →  TRUE && TRUE  →  TRUE
+
+// Example 2: additive inside equality check
+a + b == 8;
+// parsed as: (a + b) == 8
+// →  8 == 8  →  TRUE
+
+// Example 3: unary has higher precedence than multiplicative
+-a * b;
+// parsed as: (-a) * b  →  (-5) * 3  →  -15
+
+// Example 4: right-to-left unary chain
+n: int = 4;
+!!n;
+// →  !(!n)  →  !(FALSE)  →  TRUE
+
+// Example 5: assignment is lowest — the whole RHS is computed first
+result: int = 2 + 3 * 4 - 1;
+// RHS parsed as: 2 + (3 * 4) - 1  →  2 + 12 - 1  →  13
+// then assigned to result
+```
+
+<Tip>
+When in doubt, add parentheses. They have the highest possible precedence (level 10) and make your intent explicit for both the interpreter and anyone reading your code.
+</Tip>

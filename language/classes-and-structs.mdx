@@ -1,0 +1,157 @@
+---
+title: "Classes and Structs: Defining Custom Object Types in Hades"
+sidebarTitle: "Classes & Structs"
+description: "Explore Hades classes with creators, methods, and operator overloading, plus lightweight structs for aggregating typed fields into a single variable."
+---
+
+Hades provides two ways to bundle related data together: **classes**, which combine data and behaviour with support for constructors, instance methods, and operator overloading; and **structs**, which are lightweight named field aggregates with no behaviour of their own.
+
+## Classes
+
+A class definition opens with the class name, a colon, the `class` keyword, and a body block. Inside the body you place a `creator` (the constructor), zero or more `method` definitions, and optional `operator` overloads.
+
+### Defining a class
+
+```cpp
+Student: class {
+    creator Student(me, name: str, age: int, year: int, gpa: float) => nothing {
+        my.name: str = name;
+        my.age:  int = age;
+        my.year: int = year;
+        my.gpa:  float = gpa;
+        print('My name is ', my.name);
+    };
+
+    method AgeUp(me) => nothing {
+        my.age++;
+        my.year++;
+    };
+
+    operator !(me) => bool {
+        if (my.name && my.age && my.year && my.gpa) {
+            => FALSE
+        }
+        => TRUE
+    };
+};
+```
+
+<CardGroup cols={3}>
+  <Card title="creator" icon="hammer">
+    The constructor. Always named identically to the class. Receives `me` as its first parameter (similar to `self` or `this`).
+  </Card>
+  <Card title="method" icon="wrench">
+    An instance method. Also receives `me` as its first parameter, giving access to all instance variables and other methods.
+  </Card>
+  <Card title="operator" icon="code">
+    Overloads a built-in operator for instances of this class. Receives `me` and must declare a return type.
+  </Card>
+</CardGroup>
+
+### The `my.` keyword
+
+Inside a `creator`, `method`, or `operator`, use `my.` to reference or declare instance variables and call other methods on the same instance. It plays the same role as `this` in Java/C++ or `self` in Python.
+
+```cpp
+// Inside the creator, declare instance variables with my.name: type = value
+my.name: str = name;
+
+// Inside a method, read and mutate them freely
+my.age++;
+```
+
+### Creating an instance
+
+To instantiate a class, write the class name followed by `{ }` containing the constructor arguments (in order, no labels):
+
+```cpp
+Alice: Student = Student{
+    'Alice',
+    20,
+    3,
+    3.712
+};
+```
+
+Access instance properties and call methods with dot notation:
+
+```cpp
+print(Alice.age);   // 20
+Alice.AgeUp();
+print(Alice.age);   // 21
+```
+
+Invoke overloaded operators directly:
+
+```cpp
+!Alice   // FALSE — all fields are populated
+```
+
+### Operator overloading
+
+Any unary or binary operator can be overloaded per-class using the `operator` keyword followed by the operator symbol and a function signature:
+
+```cpp
+operator !(me) => bool {
+    // returns TRUE if the instance is considered "empty"
+    if (my.name && my.age && my.year && my.gpa) {
+        => FALSE
+    }
+    => TRUE
+}
+```
+
+## Structs
+
+A struct is a pure data container — a named schema of typed fields with no methods. Use structs when you need to group a fixed set of values without behaviour.
+
+### Defining a struct
+
+```cpp
+Student: struct = {
+    age:        int;
+    id:         int;
+    university: str;
+    gpa:        float
+};
+```
+
+Fields are separated by semicolons inside the definition block.
+
+### Creating struct instances
+
+Hades supports two instantiation styles:
+
+<Tabs>
+  <Tab title="Positional">
+    ```cpp
+    Alice: struct<Student> = {21, 82911, 'UMass Amherst', 3.712};
+    ```
+    Values are assigned to fields in the order they were declared in the struct definition.
+  </Tab>
+  <Tab title="Named">
+    ```cpp
+    Bob: struct<Student> = {
+        age        = 20,
+        id         = 278925,
+        university = Williams,
+        gpa        = 3.980
+    }
+    ```
+    Fields are assigned by name, making large structs easier to read and maintain.
+  </Tab>
+</Tabs>
+
+### Classes vs. structs at a glance
+
+| Feature | Class | Struct |
+|---------|-------|--------|
+| Constructor | `creator` (required) | positional or named init |
+| Methods | `method` keyword | none |
+| Operator overloading | `operator` keyword | none |
+| Instance keyword | `my.` | field names |
+| Type annotation on instance | `ClassName` | `struct<StructName>` |
+
+<Tip>
+  Prefer a **struct** when you simply need to pass a bundle of values around and all behaviour lives in standalone functions. Reach for a **class** when the data and its operations are inseparable, or when you want natural operator semantics.
+</Tip>

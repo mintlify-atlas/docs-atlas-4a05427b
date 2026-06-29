@@ -1,0 +1,147 @@
+---
+title: "Defining, Calling, and Returning from Functions in Hades"
+sidebarTitle: "Functions"
+description: "Learn Hades function syntax, typed parameters, the => return keyword, closures, recursion, and the rules around function redefinition."
+---
+
+Functions in Hades are first-class citizens with explicit type annotations on every parameter and on the return value. The interpreter validates those types on every call, giving you the safety of a statically-typed language while keeping the flexibility of an interpreted one.
+
+## Defining a function
+
+The `func` keyword opens a function definition. Parameters are declared with the same `name: type` syntax used for variables. After the parameter list, `=>` introduces the return type, and the body lives inside curly braces.
+
+```cpp
+func my_function(parameter1: type, parameter2: type) => ReturnType {
+    // function body
+    => expression
+};
+```
+
+A function that returns nothing uses `nothing` as its return type and omits the `=>` expression (or uses `=> nothing` explicitly):
+
+```cpp
+func greet(name: str) => nothing {
+    print('Hello, ', name)
+};
+```
+
+## Returning a value
+
+The `=>` token is both the return-type arrow in the header and the return *statement* inside the body. When the interpreter encounters `=>` inside a function body, it exits the function immediately and yields the expression that follows.
+
+```cpp
+func add(a: int, b: int) => int {
+    => a + b
+}
+```
+
+You can have multiple return points — the first one reached terminates the function:
+
+```cpp
+func sign(n: int) => int {
+    if (n > 0) { => 1  }
+    if (n < 0) { => -1 }
+    => 0
+}
+```
+
+## Type checking
+
+The interpreter enforces types on both entry and exit:
+
+- **Parameters** — each argument is checked against the declared parameter type before the body runs.
+- **Return value** — the value produced by `=>` is checked against the declared return type.
+- **Nothing returns** — if a function is declared `=> int` and execution reaches the end without hitting a `=>`, a runtime error is raised.
+
+```cpp
+func double(n: int) => int {
+    => n * 2
+}
+
+double(5);     // OK — returns 10
+double(2.5);   // Error — expected int, got float
+```
+
+## Recursive functions
+
+Functions can call themselves. The interpreter resolves the name from the enclosing scope, so standard recursive patterns work without any forward-declaration ceremony.
+
+<Steps>
+  <Step title="Fibonacci">
+    ```cpp
+    func fibonacci(n: int) => int {
+        if (n <= 1) {
+            => n
+        }
+        => fibonacci(n-1) + fibonacci(n-2)
+    }
+    ```
+  </Step>
+  <Step title="Factorial">
+    ```cpp
+    func factorial(n: int) => int {
+        result: int = 1;
+        for (i: int = 1; i <= n; i++) {
+            result *= i
+        }
+        => result
+    }
+    ```
+  </Step>
+  <Step title="Calling both">
+    ```cpp
+    for (i: int = 0; i < 10; i++) {
+        print(i, ': ', fibonacci(i), '; ', factorial(i))
+    }
+    ```
+  </Step>
+</Steps>
+
+## Closures
+
+Functions capture the scope in which they are defined — a function can read and modify variables from its surrounding scope even after that scope is no longer the active one. This is standard lexical-closure behaviour.
+
+```cpp
+base: int = 100;
+
+func addToBase(n: int) => int {
+    => base + n    // 'base' is captured from the outer scope
+}
+
+print(addToBase(5));   // 105
+```
+
+## No redefinition
+
+Once a function name is declared, it cannot be redefined. Attempting to declare a second function with the same name in the same scope raises a runtime error:
+
+```cpp
+func compute(x: int) => int { => x * 2 }
+func compute(x: int) => int { => x * 3 }  // Error: Cannot redefine 'compute'
+```
+
+<Note>
+  This restriction applies to the current scope. Functions defined inside a nested block (such as inside another function body) have their own scope and do not conflict with outer names.
+</Note>
+
+## Built-in functions
+
+Hades ships with a small set of built-in functions available everywhere:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `print` | `print(...)` | Prints all arguments concatenated, separated by nothing |
+| `type` | `type(value)` | Returns the Hades type name of `value` as a `str` |
+| `len` | `len(value)` | Returns the length of a `str` or `list` |
+| `pow` | `pow(base, exp)` | Raises `base` to the power of `exp` |
+
+```cpp
+msg: str = 'hello';
+print(len(msg));       // 5
+print(type(msg));      // str
+print(pow(2, 10));     // 1024
+```
+
+<Tip>
+  `print` accepts any number of arguments and joins them without a separator. Pass explicit space strings (`' '`) or newline characters (`'\n'`) when you need formatting between values.
+</Tip>

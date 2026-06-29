@@ -1,0 +1,117 @@
+---
+title: "Running Hades Programs from the Command Line"
+sidebarTitle: "Running Files"
+description: "Learn how to execute .hds files with the Hades interpreter, use verbose mode for debugging, and understand file resolution and exit codes."
+---
+
+Hades programs are executed by passing a source file to `main.py` through the Python interpreter. The runner resolves file extensions automatically, surfaces helpful formatted errors when something goes wrong, and offers a verbose mode that prints the full token list and parse tree — useful when you want to understand exactly how the interpreter sees your code.
+
+## Basic Usage
+
+```bash
+python3 main.py <file.hds> [-v|--verbose]
+```
+
+For a simple "hello world" program saved as `hello.hds`:
+
+```cpp
+str greeting = 'Hello, World!';
+print(greeting);
+```
+
+Run it with:
+
+```bash
+python3 main.py hello.hds
+```
+
+```
+Hello, World!
+```
+
+## File Extension Resolution
+
+You do not always need to type the full filename. The runner applies the following resolution rules in order:
+
+1. **No extension supplied** — `.hds` is appended automatically.  
+   `python3 main.py hello` → looks for `hello.hds`
+2. **`.hds` not found, `.hd` exists** — falls back to the `.hd` variant automatically.  
+   `python3 main.py hello` → tries `hello.hds`, then `hello.hd`
+3. **Unexpected extension supplied** — the file is still run, but a warning is printed to let you know the extension is non-standard.
+
+<Note>
+  Both `.hds` (Hades Script) and `.hd` (Hades) are valid Hades file extensions. The VS Code extension recognises both. Prefer `.hds` for new files.
+</Note>
+
+## Verbose Mode
+
+Passing `-v` or `--verbose` as the second argument instructs the runner to print the complete token list and AST (Abstract Syntax Tree) to standard output **before** executing the program. This is invaluable for debugging parser behaviour or understanding how an expression is parsed.
+
+```bash
+python3 main.py hello.hds --verbose
+# or
+python3 main.py hello.hds -v
+```
+
+Given the following source file:
+
+```cpp
+int x = 10;
+int y = x + 5;
+print(y);
+```
+
+Verbose output looks like this (abbreviated for clarity):
+
+```
+[Token(INT, 10, line=0, col=5), Token(SEMICOLON, ';', ...), Token(ID, 'x', ...), ...]
+ProgramNode(statements=[
+  VarDeclNode(name='x', type=INT, value=NumberNode(10)),
+  VarDeclNode(name='y', type=INT, value=BinOpNode(IdNode('x'), PLUS, NumberNode(5))),
+  CallNode(callee='print', args=[IdNode('y')])
+])
+15
+```
+
+The program output (`15`) follows the debug dump.
+
+<Tip>
+  Use verbose mode alongside a short test file when writing a new language feature or tracking down an unexpected parse — seeing the exact token sequence reveals ambiguities that are invisible at the source level.
+</Tip>
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Program ran successfully |
+| `1` | File not found |
+| `1` | Syntax error (lexer or parser) |
+| `1` | Runtime error (interpreter) |
+
+All error messages are printed to standard output with source location and a red caret pointer before the process exits. See the [Error Messages](/tooling/error-messages) page for full details on the error format.
+
+## Quick Reference
+
+<CodeGroup>
+```bash Run a file
+python3 main.py program.hds
+```
+
+```bash Run without extension
+python3 main.py program
+```
+
+```bash Verbose mode (short flag)
+python3 main.py program.hds -v
+```
+
+```bash Verbose mode (long flag)
+python3 main.py program.hds --verbose
+```
+</CodeGroup>
+
+## Common Mistakes
+
+<Warning>
+  The verbose flag must be the **second** argument, immediately after the filename. Placing it first (`python3 main.py -v program.hds`) will cause the runner to treat `-v` as the filename and fail with a file-not-found error.
+</Warning>

@@ -1,0 +1,123 @@
+---
+title: "Installing the Hades Language Support VS Code Extension"
+sidebarTitle: "VS Code Extension"
+description: "Install and configure the hades-language VS Code extension for syntax highlighting and editor support in .hds and .hd files."
+---
+
+The `hades-language` extension brings first-class editor support to Visual Studio Code, giving you syntax highlighting, bracket matching, and automatic comment toggling for every `.hds` and `.hd` file you open. It is distributed as a local extension packaged alongside the Hades interpreter, so a one-time install from the source directory is all you need.
+
+## What the Extension Provides
+
+<CardGroup cols={2}>
+  <Card title="Syntax Highlighting" icon="palette">
+    TextMate grammar (`source.hades`) colours keywords, types, strings, numbers, operators, and function names using your active VS Code theme.
+  </Card>
+  <Card title="File Association" icon="file-code">
+    Both `.hds` and `.hd` files are automatically recognised as the `hades` language — no manual file-association settings required.
+  </Card>
+  <Card title="Bracket Matching" icon="brackets-curly">
+    Pairs `{}`, `[]`, and `()` are tracked for matching, auto-closing, and surrounding-selection support.
+  </Card>
+  <Card title="Line Comments" icon="comment">
+    The `//` comment prefix is registered, so the **Toggle Line Comment** shortcut works out of the box.
+  </Card>
+</CardGroup>
+
+## Highlighted Language Features
+
+The grammar covers the following token categories:
+
+| Category | Examples |
+|---|---|
+| Control keywords | `if`, `else`, `do`, `while`, `for`, `in`, `func`, `return` |
+| Type keywords | `int`, `float`, `bool`, `str`, `list`, `nothing` |
+| String literals | Single-quoted strings with escape sequences |
+| Numeric literals | Integer and float literals |
+| Operators | `+`, `-`, `*`, `/`, `%`, `=`, `>`, `<`, `!`, `&`, `\|`, `^` |
+| Function calls | Any `identifier(...)` pattern |
+| Line comments | Everything following `//` to end of line |
+
+## Installing the Extension
+
+The extension lives in the `hades-language/` directory of the Hades repository. Because it is not yet published to the VS Code Marketplace (version `0.0.1`), you install it locally using one of the two methods below.
+
+<Note>
+  VS Code engine `^1.125.0` is required. Make sure your editor is up to date before installing.
+</Note>
+
+### Method 1 — Extension Development Host (Recommended for Contributors)
+
+This launches a sandboxed VS Code window with the extension active and is the fastest way to get started without packaging.
+
+<Steps>
+  <Step title="Open the extension directory">
+    Open the `hades-language/` folder in VS Code:
+    ```bash
+    code /path/to/hades/hades-language
+    ```
+  </Step>
+  <Step title="Install dependencies">
+    If a `node_modules/` directory is not already present, install the dev dependencies:
+    ```bash
+    npm install
+    ```
+  </Step>
+  <Step title="Launch the Extension Development Host">
+    Press <kbd>F5</kbd> (or go to **Run → Start Debugging**). A new VS Code window opens with the `Hades Language Support` extension loaded.
+  </Step>
+  <Step title="Open a Hades file">
+    In the new window, open any `.hds` or `.hd` file — syntax highlighting activates automatically.
+  </Step>
+</Steps>
+
+### Method 2 — Pack and Install as VSIX
+
+This installs the extension permanently into your VS Code profile.
+
+<Steps>
+  <Step title="Install vsce">
+    The VS Code Extension manager (`vsce`) is required to build the package:
+    ```bash
+    npm install -g @vscode/vsce
+    ```
+  </Step>
+  <Step title="Pack the extension">
+    From inside the `hades-language/` directory, run:
+    ```bash
+    cd /path/to/hades/hades-language
+    npm install
+    vsce package
+    ```
+    This produces a `hades-language-0.0.1.vsix` file.
+  </Step>
+  <Step title="Install the VSIX">
+    In VS Code, open the Command Palette (<kbd>Ctrl+Shift+P</kbd> / <kbd>Cmd+Shift+P</kbd>), choose **Extensions: Install from VSIX…**, and select the generated `.vsix` file.
+  </Step>
+  <Step title="Reload VS Code">
+    Reload the window when prompted. The extension is now permanently installed.
+  </Step>
+</Steps>
+
+## File Association
+
+Once installed, VS Code automatically detects `.hds` and `.hd` files as the `hades` language using the contributed language ID `hades` (aliases: `Hades`, `hades`). The language mode indicator in the bottom-right status bar will read **Hades**.
+
+<Tip>
+  If a file opens without highlighting (for example because it has no extension), click the language indicator in the status bar and manually select **Hades** from the list.
+</Tip>
+
+## Extension Details
+
+| Field | Value |
+|---|---|
+| Extension ID | `tobyp.hades-language` |
+| Display Name | Hades Language Support |
+| Version | `0.0.1` |
+| Publisher | `tobyp` |
+| VS Code Engine | `^1.125.0` |
+| Scope Name | `source.hades` |
+| Grammar file | `syntaxes/hades.tmLanguage.json` |
+
+<Warning>
+  Version `0.0.1` is an initial, unreleased build. It is not yet available on the VS Code Marketplace and must be installed from source as described above.
+</Warning>

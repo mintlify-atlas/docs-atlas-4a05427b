@@ -1,0 +1,259 @@
+---
+title: "Hades Truthiness: How Every Value Evaluates as Bool"
+sidebarTitle: "Truthiness"
+description: "How every Hades type converts to TRUE or FALSE in boolean contexts — truthiness rules from the interpreter, a full type table, and code examples."
+---
+
+Hades is a statically-typed language, but its conditional and logical constructs accept values of **any** type — not just `bool`. When a non-boolean value appears in a context that demands a truth value (an `if` condition, a `while` guard, a logical operator operand), the interpreter applies a set of rules called **truthiness** to decide whether the value counts as `TRUE` or `FALSE`. Understanding these rules is essential for writing correct conditional logic in Hades.
+
+---
+
+## Where Truthiness Applies
+
+Truthiness is evaluated in four situations:
+
+1. **`if` conditions** — `if (expr)` evaluates `expr` for truthiness.
+2. **`while` / `do-while` conditions** — the loop continues while the condition is truthy.
+3. **Logical operators** — `&&`, `||`, and `^^` test each operand's truthiness.
+4. **Logical NOT** — `!value` returns `TRUE` if `value` is falsy, `FALSE` if it is truthy.
+
+```cpp
+// All four contexts in one snippet
+x: int = 5;
+flag: bool = FALSE;
+
+if (x) {                   // 5 is truthy
+    print('x is truthy');
+}
+
+while (x) {                // loop runs while x != 0
+    x--;
+}
+
+flag ||= x;                // x is now 0 — falsy; flag stays FALSE
+print(!flag);              // !FALSE → TRUE
+```
+
+---
+
+## Truthiness Rules by Type
+
+The interpreter's `_truthy` function determines truth in this exact order:
+
+1. `nothing` (Python `None`) → always **falsy**
+2. `bool` → the value itself (`TRUE` truthy, `FALSE` falsy)
+3. `int` or `float` → truthy if **not equal to zero**
+4. `str` → truthy if **not the empty string**
+5. Everything else (lists, structures, …) → delegates to Python's `bool()`, which means non-empty collections are truthy
+
+---
+
+## Type-by-Type Reference
+
+<CardGroup cols={2}>
+  <Card title="nothing" icon="ban">
+    **Always falsy.** A `nothing` variable holds no value. There is no truthy variant of `nothing`.
+  </Card>
+  <Card title="bool" icon="toggle-on">
+    `TRUE` is truthy; `FALSE` is falsy. Booleans evaluate as themselves — no conversion needed.
+  </Card>
+  <Card title="int" icon="hashtag">
+    Any non-zero integer is truthy. Zero (`0`) is the sole falsy integer.
+  </Card>
+  <Card title="float" icon="percent">
+    Any non-zero float is truthy. Zero (`0.0`) is falsy.
+  </Card>
+  <Card title="str" icon="font">
+    Any non-empty string is truthy. The empty string `''` is falsy.
+  </Card>
+  <Card title="list" icon="list">
+    A list with at least one element is truthy. An empty list `[]` is falsy.
+  </Card>
+</CardGroup>
+
+---
+
+## Full Reference Table
+
+| Type | Truthy | Falsy |
+|------|--------|-------|
+| `nothing` | *(never truthy)* | all `nothing` values |
+| `bool` | `TRUE` | `FALSE` |
+| `int` | any value `≠ 0` | `0` |
+| `float` | any value `≠ 0.0` | `0.0` |
+| `str` | any non-empty string | `''` (empty string) |
+| `record` | any non-empty record | `""` (empty record) |
+| `list` | any non-empty list | `[]` (empty list) |
+| `structure` | any structure with at least one field set | structure with no values |
+
+---
+
+## Code Examples by Type
+
+### `nothing`
+
+```cpp
+result: nothing;
+
+if (result) {
+    print('this never runs');
+} else {
+    print('nothing is always falsy');
+}
+// Output: nothing is always falsy
+
+// Logical NOT of nothing
+print(!result);   // TRUE
+```
+
+### `bool`
+
+```cpp
+flag: bool = TRUE;
+
+if (flag) {
+    print('TRUE is truthy');
+}
+
+if (!FALSE) {
+    print('NOT FALSE is TRUE');
+}
+// Output:
+// TRUE is truthy
+// NOT FALSE is TRUE
+```
+
+### `int`
+
+```cpp
+positive: int = 42;
+negative: int = -7;
+zero: int = 0;
+
+if (positive)  { print('42 is truthy') }
+if (negative)  { print('-7 is truthy') }
+if (!zero)     { print('0 is falsy')   }
+// Output:
+// 42 is truthy
+// -7 is truthy
+// 0 is falsy
+```
+
+### `float`
+
+```cpp
+pi: float = 3.14;
+nf: float = 0.0;
+
+if (pi)  { print('3.14 is truthy') }
+if (!nf) { print('0.0 is falsy')   }
+// Output:
+// 3.14 is truthy
+// 0.0 is falsy
+```
+
+### `str`
+
+```cpp
+name: str = 'Hades';
+empty: str = '';
+
+if (name)   { print('non-empty string is truthy') }
+if (!empty) { print('empty string is falsy')       }
+// Output:
+// non-empty string is truthy
+// empty string is falsy
+```
+
+### `list`
+
+```cpp
+items: list = [1, 2, 3];
+none: list = [];
+
+if (items)  { print('non-empty list is truthy') }
+if (!none)  { print('empty list is falsy')      }
+// Output:
+// non-empty list is truthy
+// empty list is falsy
+```
+
+---
+
+## Logical Operators and Truthiness
+
+The binary logical operators `&&`, `||`, and `^^` all use truthiness on **both** operands. They do not require either side to be a declared `bool`.
+
+<Note>
+In Hades, logical operators return a **`bool`** result (`TRUE` or `FALSE`), not the operand value itself. This differs from languages like JavaScript where `||` and `&&` return one of their operands.
+</Note>
+
+```cpp
+// && returns TRUE only when both sides are truthy
+1 && 1;          // TRUE
+1 && 0;          // FALSE
+'hi' && TRUE;    // TRUE   ('hi' is truthy, TRUE is truthy)
+'' && TRUE;      // FALSE  ('' is falsy)
+
+// || returns TRUE when at least one side is truthy
+0 || 1;          // TRUE
+0 || '';         // FALSE  (both falsy)
+'a' || FALSE;    // TRUE   ('a' is truthy)
+
+// ^^ returns TRUE when exactly one side is truthy
+TRUE ^^ FALSE;   // TRUE
+TRUE ^^ TRUE;    // FALSE  (both truthy)
+0 ^^ 1;          // TRUE
+0 ^^ 0;          // FALSE  (both falsy)
+```
+
+---
+
+## Logical NOT and Truthiness
+
+The prefix `!` operator converts any value to a boolean using truthiness and returns its negation.
+
+```cpp
+!TRUE;      // FALSE
+!FALSE;     // TRUE
+!0;         // TRUE   (0 is falsy, so !0 is TRUE)
+!1;         // FALSE  (1 is truthy)
+!'';        // TRUE   (empty string is falsy)
+!'hello';   // FALSE  (non-empty string is truthy)
+![];        // TRUE   (empty list is falsy)
+![1];       // FALSE  (non-empty list is truthy)
+```
+
+<Tip>
+Double negation (`!!value`) is a concise way to convert any value to its canonical `bool` equivalent: `!!5` gives `TRUE`, `!!0` gives `FALSE`, `!!''` gives `FALSE`, and `!!'text'` gives `TRUE`.
+</Tip>
+
+---
+
+## Truthiness in Loop Guards
+
+Loop conditions are checked with the same truthiness rules. This lets you use a numeric counter or a non-empty list directly as a loop guard.
+
+```cpp
+// Count down using integer truthiness — stops when i reaches 0
+i: int = 3;
+while (i) {
+    print(i);
+    i--
+}
+// Output:
+// 3
+// 2
+// 1
+
+// Iterate while a string is non-empty (conceptual — requires string mutation support)
+phrase: str = 'ok';
+do {
+    print(phrase);
+} while (phrase);
+// prints 'ok' at least once; continues while phrase is non-empty
+```
+
+<Warning>
+Be careful with float counters as loop guards. Due to floating-point representation, a value intended to reach exactly `0.0` may land on a very small non-zero number (e.g., `1e-16`), which is truthy — causing the loop to run one extra iteration. Prefer integer counters wherever possible.
+</Warning>

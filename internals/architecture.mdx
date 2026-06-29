@@ -1,0 +1,170 @@
+---
+title: "Hades Interpreter Architecture and Module Layout"
+sidebarTitle: "Architecture"
+description: "A complete guide to Hades's three-phase pipeline — Lexer, Parser, Interpreter — and how every module fits together into a working language runtime."
+---
+
+Hades is a tree-walk interpreter built entirely in Python. Source code in `.hds` or `.hd` files travels through three sequential phases — tokenisation, parsing, and evaluation — before producing a result. Each phase is cleanly isolated in its own module, and the modules are wired together by a thin entry point in `main.py`. Understanding this layout is the fastest route to navigating the codebase.
+
+## The Three-Phase Pipeline
+
+<Steps>
+  <Step title="Tokenise — Source Text → Token List">
+    `Lexer(source).tokenize()` scans the raw source string character-by-character and emits a flat `list[Token]`. Every token carries its type (a `TT` enum member), its literal value, and the line/column where it appeared. Whitespace and `//` comments are silently discarded during this step.
+
+    ```cpp
+    x: int = 42;
+    ```
+
+    Produces tokens roughly like:
+
+    ```
+    Token(TT.ID,           'x',  0:1)
+    Token(TT.COLON,        ':',  0:2)
+    Token(TT.INT_TYPE_HINT,'int',0:4)
+    Token(TT.ASSIGN,       '=',  0:8)
+    Token(TT.INT,          42,   0:10)
+    Token(TT.SEMICOLON,    ';',  0:12)
+    Token(TT.EOF,          None, 0:13)
+    ```
+  </Step>
+
+  <Step title="Parse — Token List → AST">
+    `Parser(tokens).parse()` consumes the token list with a recursive-descent strategy and returns a `ProgramNode` whose `statements` field contains a tree of AST node dataclasses. The parser uses precedence-climbing for binary expressions and never calls the lexer directly — the token list is fully materialised before parsing begins.
+
+    ```cpp
+    x: int = 42;
+    ```
+
+    Produces:
+
+    ```
+    ProgramNode([
+      VarDeclNode('x': TT.INT_TYPE_HINT = NumberNode(42))
+    ])
+    ```
+  </Step>
+
+  <Step title="Evaluate — AST → Result">
+    `Interpreter().evaluate(node)` walks the AST from the root `ProgramNode` downward. For each node type it dispatches to a dedicated handler via the `NODE_HANDLERS` dict. Runtime state lives in a chain of `Scope` objects. The final return value of the last top-level statement is the program's result.
+
+    ```cpp
+    x: int = 42;
+    print(x);
+    ```
+
+    Outputs `42` to stdout.
+  </Step>
+</Steps>
+
+## Module Layout
+
+<CardGroup cols={2}>
+  <Card title="main.py" icon="play">
+    The entry point. Reads the `.hds` / `.hd` file, instantiates `Lexer`, `Parser`, and `Interpreter` in sequence, and wraps the whole run in `try/except` blocks that catch `SyntaxError` and `InterpreterError`, then format them with `f_error()` before printing and exiting with code `1`. Passing `-v` / `--verbose` prints the raw token list and AST before execution.
+  </Card>
+
+  <Card title="modules/lexer.py" icon="code">
+    Contains the `Lexer` class. The public method `tokenize()` drives an internal `get_next_token()` loop until `TT.EOF` is reached. Exposes a `pretty_print()` debugging helper that groups tokens by source line.
+  </Card>
+
+  <Card title="modules/parser.py" icon="sitemap">
+    Contains the `Parser` class. The public method `parse()` returns a `ProgramNode`. Internally `STATEMENT_HANDLERS` and `PRIMARY_HANDLERS` dispatch dicts route each token type to the right recursive method. Raises `ParserError` (a `SyntaxError` subclass) with line/column info on any syntactic mistake.
+  </Card>
+
+  <Card title="modules/interpreter.py" icon="bolt">
+    Contains the `Interpreter` class, the `InterpreterError` exception, and the `ReturnSignal` exception. The public method `evaluate(node)` dispatches via `NODE_HANDLERS`. Built-in functions (`print`, `type`, `len`) are registered in the `BUILTINS` dict and never appear in `Scope`.
+  </Card>
+
+  <Card title="modules/ast_nodes.py" icon="diagram-project">
+    All AST node dataclasses live here — literals, operations, control-flow nodes, `FuncNode`, `ProgramNode`, and the runtime objects `HadesFunction`, `HadesClass`, and `HadesInstance`. Each dataclass carries a reference to the originating `Token` so the interpreter can report accurate source positions.
+  </Card>
+
+  <Card title="modules/tokens.py" icon="tag">
+    Defines the `TT` enum (all token type constants) and the `Token` dataclass (`type`, `value`, `line`, `column`). Both are imported by every other module — this is the only shared data contract across Lexer, Parser, and Interpreter.
+  </Card>
+
+  <Card title="modules/scope.py" icon="layer-group">
+    The `Scope` class: a `dict`-backed variable environment with `get()`, `set()`, `declare()`, and `has()` methods. `get()` and `set()` both walk the `parent` chain automatically, so inner scopes can read and mutate variables declared in outer scopes.
+  </Card>
+
+  <Card title="modules/helpers.py" icon="wrench">
+    Two utility functions. `match(string, pattern)` wraps `re.search` into a boolean helper used by the lexer. `f_error(error_type, message, source_text, line, column)` formats a rich terminal error block — underlines the offending source line and places a red `^` caret at the error column — used by `main.py`.
+  </Card>
+</CardGroup>
+
+## How Scope Works
+
+Every variable in Hades lives inside a `Scope` object. Scopes form a singly-linked list via their `parent` pointer, stretching from the current innermost block all the way back to the global scope.
+
+```python
+# modules/scope.py (simplified)
+class Scope:
+    def __init__(self, parent: Scope | None = None):
+        self.variables: dict[str, Any] = {}
+        self.parent = parent
+
+    def get(self, name: str) -> Any:
+        if name in self.variables:
+            return self.variables[name]
+        if self.parent is not None:
+            return self.parent.get(name)   # walk up the chain
+        raise KeyError(name)
+
+    def set(self, name: str, value: Any) -> None:
+        if name in self.variables:
+            self.variables[name] = value
+            return
+        if self.parent is not None:
+            self.parent.set(name, value)   # mutate the owning scope
+            return
+        raise KeyError(name)
+
+    def declare(self, name: str, value: Any) -> None:
+        self.variables[name] = value       # always writes to THIS scope
+```
+
+New scopes are created in three situations:
+
+| Situation | How it happens |
+|---|---|
+| Block statement (`if`, `while`, `for`) | `_eval_block()` saves the old scope, creates `Scope(parent=self.scope)`, and restores after |
+| Function call | `_call_function()` creates `Scope(parent=function.closure_scope)`, so closures see their definition-time environment |
+| `for … in` loop | `_eval_forin()` creates a fresh `Scope` per iteration to prevent the loop variable from leaking |
+
+<Note>
+`declare()` always writes into the **current** scope, while `set()` searches upward and mutates the first scope that owns the name. This distinction is what allows inner scopes to shadow outer variables cleanly.
+</Note>
+
+## How Errors Propagate
+
+<Accordion title="SyntaxError — raised by Lexer and Parser">
+The `Lexer` raises a plain `SyntaxError` via its `RaiseError()` helper. The `Parser` raises `ParserError`, a subclass of `SyntaxError`, which stores the offending token's `line` and `column` as attributes. Both are caught in `main.py`'s `except SyntaxError` clause. The message is stripped of the internal `" at (line, col)"` suffix and passed to `f_error()` for pretty-printing.
+
+```python
+# main.py
+except SyntaxError as e:
+    line, column = getattr(e, 'line', 1), getattr(e, 'line', 1)
+    clean_msg = str(e).split(' at ')[0]
+    print(f_error('Syntax Error', clean_msg, source, line, column))
+    sys.exit(1)
+```
+</Accordion>
+
+<Accordion title="InterpreterError — raised by the Interpreter">
+`InterpreterError` carries the offending `Token` directly so that its `line` and `column` can be extracted without parsing the message string. The interpreter raises it for undefined variables, type mismatches, division by zero, and invalid operands.
+
+```python
+# main.py
+except InterpreterError as e:
+    line   = e.token.line   if e.token else 1
+    column = e.token.column if e.token else 1
+    clean_msg = str(e).split(' at ')[0]
+    print(f_error('Runtime error', clean_msg, source, line, column))
+    sys.exit(1)
+```
+</Accordion>
+
+<Tip>
+The `f_error()` helper produces colourised terminal output: the error type appears in bold red, the offending source line is underlined, and a red `^` caret points to the exact column. This makes runtime errors far easier to diagnose than a bare Python traceback.
+</Tip>

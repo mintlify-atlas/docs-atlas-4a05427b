@@ -1,0 +1,171 @@
+---
+title: "Installing and Running the Hades Language Interpreter"
+sidebarTitle: "Installation"
+description: "Clone the Hades source, verify your Python version, run your first .hds file, and install the VS Code syntax-highlighting extension locally."
+---
+
+Hades has no package manager release — the interpreter lives entirely in a single cloned repository and is invoked directly with Python. This page walks you through every step from checking prerequisites to getting syntax highlighting in your editor.
+
+## Prerequisites
+
+Hades is implemented in Python and relies on language features that require a modern Python version:
+
+- **Python 3.12 or later** is required.
+  - The `type` alias statement (`type Vector = list`) was introduced in **Python 3.12**.
+  - The `match` statement and `X | Y` union syntax in type hints require **Python 3.10+**.
+
+<Warning>
+  Running Hades with Python 3.11 or earlier will produce a `SyntaxError` inside the interpreter source itself before any `.hds` file is even read. Verify your version before proceeding.
+</Warning>
+
+Check your installed version:
+
+```bash
+python3 --version
+```
+
+If the output is below `3.12`, install a newer release from [python.org](https://www.python.org/downloads/) or via your system package manager before continuing.
+
+## Getting the Source
+
+Hades has no published PyPI package or binary distribution. Clone the repository directly from GitHub:
+
+```bash
+git clone https://github.com/ToberlerOhn/hades.git
+cd hades
+```
+
+No additional dependencies need to be installed — the interpreter uses only the Python standard library.
+
+<Note>
+  There is no `pip install hades` step. All you need is the cloned directory and a compatible Python interpreter.
+</Note>
+
+## Running a Hades File
+
+### Basic usage
+
+Pass a `.hds` source file as the first argument to `main.py`:
+
+```bash
+python3 main.py my_program.hds
+```
+
+### File extension handling
+
+The runner understands both `.hds` (primary) and `.hd` (alternate) extensions. If you supply a path with **no extension**, it automatically appends `.hds` and looks for that file:
+
+```bash
+# These three invocations all resolve to my_program.hds (or .hd as a fallback)
+python3 main.py my_program.hds
+python3 main.py my_program.hd
+python3 main.py my_program
+```
+
+The resolution logic works as follows:
+
+<Steps>
+  <Step title="Append extension if missing">
+    If the supplied path does not end in `.hds` or `.hd`, the runner appends `.hds` to form the candidate path.
+  </Step>
+  <Step title="Check for the candidate file">
+    If the `.hds` candidate does not exist on disk, the runner tries the same stem with `.hd`.
+  </Step>
+  <Step title="Error if neither exists">
+    If neither file is found, the runner prints `Error: file path not found: <path>` and exits with code `1`.
+  </Step>
+</Steps>
+
+### Verbose mode
+
+Pass `-v` or `--verbose` as the second argument to print the **token list** and **AST** produced by the Lexer and Parser before execution begins:
+
+<CodeGroup>
+```bash Short flag
+python3 main.py my_program.hds -v
+```
+
+```bash Long flag
+python3 main.py my_program.hds --verbose
+```
+</CodeGroup>
+
+Verbose output is printed to stdout in the form:
+
+```
+[Token(...), Token(...), ...]
+ProgramNode(statements=[...])
+```
+
+<Tip>
+  Verbose mode is invaluable when debugging unexpected parse behaviour or learning how Hades translates source text into an AST. Try it on small snippets first — the output grows quickly for larger files.
+</Tip>
+
+## Error Messages
+
+Hades produces two categories of errors at runtime, each printed with the offending line highlighted in the source:
+
+| Error type | When it occurs |
+|------------|----------------|
+| `Syntax Error` | The source cannot be parsed — e.g. a missing semicolon, unmatched bracket, or unrecognised token. |
+| `Runtime error` | The AST is valid but execution fails — e.g. a type mismatch, undefined variable, or division by zero. |
+
+Both print a formatted message including the error description and the line/column number in the source file, then exit with code `1`.
+
+## VS Code Extension
+
+The repository ships a VS Code extension in the `hades-language/` subdirectory that provides syntax highlighting for `.hds` and `.hd` files.
+
+**Extension metadata**
+
+| Field | Value |
+|-------|-------|
+| Publisher | `tobyp` |
+| Name | `hades-language` |
+| Display name | Hades Language Support |
+| Supported extensions | `.hds`, `.hd` |
+
+### Installing as a local extension
+
+<Steps>
+  <Step title="Open the hades-language directory in VS Code">
+    In VS Code, go to **File → Open Folder** and select the `hades-language/` directory inside your cloned repository.
+  </Step>
+  <Step title="Install the VSCE packaging tool (optional — for VSIX install)">
+    If you want to build a `.vsix` package, install the VS Code Extension CLI:
+
+    ```bash
+    npm install -g @vscode/vsce
+    vsce package
+    ```
+
+    This produces a `hades-language-0.0.1.vsix` file in the directory.
+  </Step>
+  <Step title="Install from VSIX">
+    In VS Code open the **Extensions** panel (`Ctrl+Shift+X` / `Cmd+Shift+X`), click the **`…`** menu in the top-right of the panel, choose **Install from VSIX…**, and select the `.vsix` file you just built.
+  </Step>
+  <Step title="Alternatively — install directly via the command line">
+    You can install the packaged extension without opening the UI:
+
+    ```bash
+    code --install-extension hades-language-0.0.1.vsix
+    ```
+  </Step>
+  <Step title="Reload VS Code">
+    Press `Ctrl+Shift+P` / `Cmd+Shift+P`, run **Developer: Reload Window**, and open any `.hds` file to confirm that syntax highlighting is active.
+  </Step>
+</Steps>
+
+<Note>
+  If you do not want to install `vsce`, you can also press **F5** inside VS Code with the `hades-language/` folder open to launch an **Extension Development Host** — a temporary VS Code window with the extension loaded for testing, without any permanent installation.
+</Note>
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Run a file | `python3 main.py program.hds` |
+| Run without extension | `python3 main.py program` |
+| Run in verbose mode | `python3 main.py program.hds -v` |
+| Check Python version | `python3 --version` |
+| Clone the repo | `git clone https://github.com/ToberlerOhn/hades.git` |

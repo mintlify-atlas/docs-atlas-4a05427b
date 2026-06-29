@@ -1,47 +1,249 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Hades Quickstart: Write and Run Your First Program"
+sidebarTitle: "Quickstart"
+description: "Go from zero to running Hades code in minutes. Write hello world, explore types, define functions, work with lists, and use verbose mode."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This guide gets you writing real Hades code as fast as possible. By the end you will have run a hello world, declared typed variables, written a recursive function, indexed a list, and used verbose mode to inspect the interpreter pipeline. All you need is a cloned copy of the repository and Python 3.12+. If you haven't done that yet, start with the [Installation guide](/installation).
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Write and run Hello World">
+    Create a new file called `hello.hds` in the root of the cloned `hades/` directory with the following content:
+
+    ```cpp
+    name: str = 'World';
+    print('Hello, ', name, '!')
+    ```
+
+    Run it:
 
     ```bash
-    npm install your-package
+    python3 main.py hello.hds
     ```
+
+    Expected output:
+
+    ```
+    Hello, World!
+    ```
+
+    A few things to notice right away:
+    - Variables must be **declared with a type hint** — `name: str` — before being assigned.
+    - `print` accepts any number of arguments and concatenates them with **no separator**.
+    - Semicolons are required at the end of most statements, but are **not** required immediately before a closing `}` or after one.
+
+    <Tip>
+      You can omit the `.hds` extension when running a file. `python3 main.py hello` works identically — the runner will automatically append `.hds` when looking for the file.
+    </Tip>
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+
+  <Step title="Declare variables with types">
+    Hades is statically typed: every variable carries an explicit type hint that the interpreter enforces. Create `types_demo.hds`:
+
+    ```cpp
+    age: int = 25;
+    height: float = 1.82;
+    active: bool = TRUE;
+    greeting: str = 'Hello';
+    empty: nothing;
+
+    print('Name type : ', type(greeting))
+    print('Age       : ', age)
+    print('Height    : ', height)
+    print('Active    : ', active)
+    print('Empty     : ', empty)
+    ```
+
+    Run it:
 
     ```bash
-    your-cli init
+    python3 main.py types_demo.hds
     ```
+
+    Expected output:
+
+    ```
+    Name type : str
+    Age       : 25
+    Height    : 1.82
+    Active    : TRUE
+    Empty     : nothing
+    ```
+
+    <Note>
+      `nothing` is the only type that does not require an initializer. All other types must be declared and initialized in the same statement. Booleans use the uppercase literals `TRUE` and `FALSE`.
+    </Note>
+
+    The built-in `type()` function returns the Hades type name of any value as a string — handy for debugging. The `nothing` type prints as the string `nothing` and is the Hades equivalent of `null` or `None`.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+  <Step title="Define and call a function">
+    Functions in Hades use the `func` keyword, declare typed parameters, annotate the return type with `=>`, and use `=>` as the return statement inside the body.
+
+    The example below defines a classic recursive Fibonacci sequence and a factorial function (taken directly from `testing.hds` in the repository), then prints the first ten values of each:
+
+    ```cpp
+    func fibonacci(n: int) => int {
+        if (n <= 1) {
+            => n
+        }
+        => fibonacci(n-1) + fibonacci(n-2)
+    }
+
+    func factorial(n: int) => int {
+        result: int = 1;
+        for (i: int = 1; i <= n; i++) {
+            result *= i
+        }
+        => result
+    }
+
+    for (i: int = 0; i < 10; i++) {
+        print(i, ': fib=', fibonacci(i), '  fact=', factorial(i))
+    }
+    ```
+
+    Save this as `math_demo.hds` and run it:
 
     ```bash
-    your-cli start
+    python3 main.py math_demo.hds
     ```
+
+    Expected output:
+
+    ```
+    0: fib=0  fact=1
+    1: fib=1  fact=1
+    2: fib=1  fact=2
+    3: fib=2  fact=6
+    4: fib=3  fact=24
+    5: fib=5  fact=120
+    6: fib=8  fact=720
+    7: fib=13  fact=5040
+    8: fib=21  fact=40320
+    9: fib=34  fact=362880
+    ```
+
+    <Tip>
+      Functions capture their enclosing scope as a **closure**. A function defined inside another function can read and use variables from the outer function even after that outer function has returned.
+    </Tip>
+
+    Key syntax points:
+    - `=>` before the return type in the signature: `func name(params) => ReturnType { }`
+    - `=>` as the return statement inside the body: `=> expression`
+    - The C-style `for` loop initializes a typed loop variable: `for (i: int = 0; i < n; i++)`
+    - Compound assignment operators like `*=` work as expected.
+  </Step>
+
+  <Step title="Work with lists">
+    Lists in Hades are mutable ordered sequences. They are created with square-bracket literals and elements are accessed using the `->` index operator.
+
+    Create `lists_demo.hds`:
+
+    ```cpp
+    scores: list = [95, 87, 92, 78];
+
+    first: int  = scores->0;
+    last: int   = scores->3;
+
+    print('All scores : ', scores->0, ', ', scores->1, ', ', scores->2, ', ', scores->3)
+    print('First score: ', first)
+    print('Last score : ', last)
+    print('Count      : ', len(scores))
+    ```
+
+    Run it:
+
+    ```bash
+    python3 main.py lists_demo.hds
+    ```
+
+    Expected output:
+
+    ```
+    All scores : 95, 87, 92, 78
+    First score: 95
+    Last score : 78
+    Count      : 4
+    ```
+
+    <Note>
+      List indices are **zero-based**. Accessing an index outside the list's bounds raises a runtime error: `List index N out of range (length M)`.
+    </Note>
+
+    You can also iterate over a list with a `for-in` loop:
+
+    ```cpp
+    nums: list = [10, 20, 30];
+
+    for (n: int; n in nums) {
+        print(n)
+    }
+    ```
+
+    <Tip>
+      Use the built-in `len()` function to get the number of elements in a list (or characters in a string) without hardcoding bounds.
+    </Tip>
+  </Step>
+
+  <Step title="Explore verbose mode">
+    Hades ships with a built-in debug flag that prints the **token list** and **AST** produced by the Lexer and Parser before execution begins. This is a great way to understand how your source is being interpreted.
+
+    Run any file with `-v` or `--verbose`:
+
+    ```bash
+    python3 main.py hello.hds -v
+    ```
+
+    You will see output similar to the following before your program's normal output:
+
+    ```
+    [Token(STR_TYPE_HINT, 'str', 1, 8), Token(ASSIGN, '=', 1, 14), ...]
+    ProgramNode(statements=[VarDeclNode(...), CallNode(...)])
+    Hello, World!
+    ```
+
+    <Tabs>
+      <Tab title="Short flag">
+        ```bash
+        python3 main.py my_program.hds -v
+        ```
+      </Tab>
+      <Tab title="Long flag">
+        ```bash
+        python3 main.py my_program.hds --verbose
+        ```
+      </Tab>
+    </Tabs>
+
+    The verbose output has two sections:
+
+    | Section | What it shows |
+    |---------|---------------|
+    | Token list | Every `Token` object emitted by the Lexer — type, raw value, and line/column position |
+    | AST | The full `ProgramNode` tree produced by the Parser — every node type and its children |
+
+    <Tip>
+      Start with a tiny snippet (two or three lines) when exploring verbose output. A full program can produce hundreds of tokens and deeply nested AST nodes that are hard to read all at once.
+    </Tip>
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## What to Explore Next
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+You have now covered the core building blocks of Hades. Here are natural next steps:
+
+<CardGroup cols={2}>
+  <Card title="Variables & Types" icon="brackets-curly" href="/language/variables-and-types">
+    Learn the full type system, truthiness rules, and operator precedence.
+  </Card>
+  <Card title="Functions" icon="function" href="/language/functions">
+    Closures, typed parameters, return annotations, and recursion patterns.
+  </Card>
+  <Card title="Control Flow" icon="arrow-right-arrow-left" href="/language/control-flow">
+    While, do-while, for, for-in, break, next, and _goTo.
+  </Card>
+  <Card title="Built-in Reference" icon="book" href="/reference/builtins">
+    Full documentation for `print`, `type`, and `len`.
+  </Card>
+</CardGroup>

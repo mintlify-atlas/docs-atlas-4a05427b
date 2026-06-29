@@ -1,0 +1,187 @@
+---
+title: "Control Flow: Conditions, Loops, and Jumps in Hades"
+sidebarTitle: "Control Flow"
+description: "Master if/else branching, while, do-while, for, and for-in loops, plus Hades-specific keywords: next, break, return, and _goTo labels."
+---
+
+Hades control flow looks familiar to anyone coming from C, Java, or JavaScript — curly-brace blocks, parenthesised conditions, and `for` loop headers — but it adds a few distinctive touches: the `=>` return keyword, `next` instead of `continue`, and a `_goTo` label mechanism for unconditional jumps.
+
+## Conditional statements
+
+### if / else if / else
+
+Conditions are placed in parentheses and the body in curly braces. Any number of `else if` branches may follow the opening `if`, with an optional final `else`.
+
+```cpp
+foo: int = 5;
+
+if (foo == 3) {
+    print('foo is 3');
+} else if (foo == 5) {
+    print('foo is 5');
+} else {
+    print('foo isn\'t 3 or 5')
+}
+// outputs: foo is 5
+```
+
+Any value can be used as a condition — the interpreter uses truthiness rules to coerce it to `bool`. An empty string, `0`, `0.0`, `nothing`, or an empty list are all falsy; everything else is truthy.
+
+<Note>
+  No semicolon is required after a closing `}`. Semicolons are only needed to terminate simple expressions and declarations.
+</Note>
+
+## Loops
+
+### While loop
+
+A `while` loop evaluates its condition before every iteration. If the condition is falsy on the very first check, the body never runs.
+
+```cpp
+i: int = 0;
+while (i < 3) {
+    print(i);
+    i++
+};
+// outputs: 0  1  2
+```
+
+### Do-while loop
+
+A `do-while` loop runs the body first, then checks the condition. The body always executes at least once.
+
+```cpp
+i: int = 0;
+do {
+    print(i);
+    i++
+} while (i < 3);
+// outputs: 0  1  2
+```
+
+<Tabs>
+  <Tab title="while">
+    ```cpp
+    i: int = 0;
+    while (i < 3) {
+        print(i);
+        i++
+    };
+    ```
+    Condition is checked *before* each iteration. May run zero times.
+  </Tab>
+  <Tab title="do-while">
+    ```cpp
+    i: int = 0;
+    do {
+        print(i);
+        i++
+    } while (i < 3);
+    ```
+    Body runs *before* the condition is first checked. Runs at least once.
+  </Tab>
+</Tabs>
+
+### For loop
+
+The classic C-style `for` loop has three parts in its header separated by semicolons: an initialiser, a test expression, and an update statement.
+
+```cpp
+for (i: int = 0; i < 3; i++) {
+    print(i)
+};
+// outputs: 0  1  2
+```
+
+The initialiser declares a typed variable scoped to the loop. The update runs after every iteration's body.
+
+### For-in loop
+
+The for-in variant iterates over each element of a `list` or each character of a `str`. The loop variable is typed; the interpreter checks each element against that type at runtime.
+
+```cpp
+for (item: int; item in [10, 20, 30]) {
+    print(item)
+}
+// outputs: 10  20  30
+```
+
+```cpp
+word: str = 'hi';
+for (ch: str; ch in word) {
+    print(ch)
+}
+// outputs: h  i
+```
+
+<Warning>
+  You cannot iterate over a `record`, `int`, `float`, or `bool`. Attempting to do so raises a runtime error. Only `list` and `str` are iterable.
+</Warning>
+
+## Loop control keywords
+
+<Accordion title="next — skip to the next iteration">
+  `next` jumps to the start of the next iteration, skipping any remaining statements in the current loop body. In a `for` loop, the update expression (e.g. `i++`) still runs.
+
+  ```cpp
+  for (i: int = 0; i < 5; i++) {
+      if (i == 2) {
+          next
+      };
+      print(i)
+  };
+  // outputs: 0  1  3  4
+  ```
+</Accordion>
+
+<Accordion title="break — exit the loop">
+  `break` immediately exits the enclosing loop, skipping both the remaining body statements and all future iterations.
+
+  ```cpp
+  for (i: int = 0; i < 10; i++) {
+      if (i == 3) {
+          break
+      };
+      print(i)
+  };
+  // outputs: 0  1  2
+  ```
+</Accordion>
+
+## Return
+
+Inside a function, `=>` followed by an expression exits the function and returns that value. To return nothing explicitly, use `=> nothing`.
+
+```cpp
+func clamp(n: int) => int {
+    if (n < 0) {
+        => 0
+    }
+    if (n > 100) {
+        => 100
+    }
+    => n
+}
+```
+
+See the [Functions](/language/functions) page for the full function syntax.
+
+## Goto labels
+
+For unconditional jumps, Hades provides `_goTo` and named labels. Define a label by writing `LABEL_NAME:` on its own line; jump to it with `_goTo LABEL_NAME`.
+
+```cpp
+for (i: int = 0; i < 100; i++) {
+    if (i == 'end') {
+        _goTo DONE
+    };
+    print(i)
+};
+
+DONE:
+print('finished')
+```
+
+<Warning>
+  `_goTo` bypasses normal scope and loop control. Use it sparingly — preferring `break` and `next` for loop control and `=>` for returning from functions leads to more readable code.
+</Warning>

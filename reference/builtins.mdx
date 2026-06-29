@@ -1,0 +1,217 @@
+---
+title: "Hades Built-in Functions: print, type, and len Explained"
+sidebarTitle: "Built-ins"
+description: "Complete reference for Hades's three built-in functions — print, type, and len — with parameter rules, return types, and annotated code examples."
+---
+
+Hades ships with three built-in functions that are always in scope and require no import. They are resolved before any user-defined function of the same name, so redefining `print`, `type`, or `len` in your own code will shadow the built-in. Each function is described below with its full behaviour drawn directly from the interpreter.
+
+---
+
+## `print`
+
+Writes one or more values to standard output, **concatenated with no separator**. After printing, a newline is appended automatically (standard Python `print` behaviour).
+
+### Parameters
+
+`print` is variadic — it accepts any number of arguments of any type. Passing zero arguments prints a blank line.
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `...args` | any | Zero or more values; all are converted to strings before output |
+
+### Return value
+
+`nothing` — `print` has no return value.
+
+### String conversion rules
+
+The interpreter converts each argument using its internal `_to_string` helper before concatenating them. The conversion rules are:
+
+<CardGroup cols={2}>
+  <Card title="bool" icon="toggle-on">
+    `TRUE` becomes the string `'TRUE'`; `FALSE` becomes `'FALSE'`. Python `True`/`False` are never exposed.
+  </Card>
+  <Card title="nothing" icon="ban">
+    A `nothing` value (Python `None`) becomes the string `'nothing'`.
+  </Card>
+  <Card title="float" icon="percent">
+    Trailing zeros are stripped — `1.5` prints as `1.5`, not `1.500000`. The integer part is preserved, so `2.0` prints as `2`.
+  </Card>
+  <Card title="int / str / list" icon="list">
+    All other values are converted with Python's `str()`, producing the natural representation.
+  </Card>
+</CardGroup>
+
+### Examples
+
+```cpp
+// Multiple arguments are concatenated with no separator
+print('Value: ', 42);
+// Output: Value: 42
+
+// Booleans print as Hades keywords, not Python True/False
+print(TRUE, ' ', FALSE);
+// Output: TRUE FALSE
+
+// Strings concatenate directly
+print('a', 'b', 'c');
+// Output: abc
+
+// nothing prints as the word nothing
+result: nothing;
+print('result = ', result);
+// Output: result = nothing
+
+// Floats have trailing zeros stripped
+ratio: float = 1.5;
+print(ratio);
+// Output: 1.5
+
+// A zero-argument call prints a blank line
+print();
+```
+
+<Tip>
+Because arguments are joined with **no separator**, include any desired spacing inside your string literals. For example, write `print('x = ', x)` rather than `print('x =', x)` if you want a space before the value.
+</Tip>
+
+---
+
+## `type`
+
+Returns the Hades type name of its argument as a `str`.
+
+### Parameters
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `value` | any | Exactly one argument; passing zero or two or more arguments raises an error |
+
+### Return value
+
+A `str` containing the Hades type name. The mapping from runtime values to type names is:
+
+| Value kind | Returned string |
+|-----------|----------------|
+| Boolean | `'bool'` |
+| Integer | `'int'` |
+| Float | `'float'` |
+| String | `'str'` |
+| Other | Python's `type.__name__` |
+
+<Note>
+`type` distinguishes `bool` from `int` even though Python's `bool` is a subclass of `int`. A Hades `TRUE` or `FALSE` value always returns `'bool'`, never `'int'`.
+</Note>
+
+### Examples
+
+```cpp
+type(42);        // 'int'
+type(3.14);      // 'float'
+type(TRUE);      // 'bool'
+type(FALSE);     // 'bool'
+type('hello');   // 'str'
+
+// Practical use: guard a branch by type
+x: int = 7;
+if (type(x) == 'int') {
+    print('x is an integer');
+}
+
+// Use type() with print to inspect a value
+scores: list = [1, 2, 3];
+print(type(scores));   // list
+```
+
+<Tip>
+`type` is particularly useful during development and debugging to verify that a variable holds the expected kind of value before performing an operation on it.
+</Tip>
+
+### Error behaviour
+
+Passing any number of arguments other than exactly one raises an `InterpreterError` at the call site:
+
+```cpp
+type();          // InterpreterError: type() takes exactly 1 argument, but got 0
+type(1, 2);      // InterpreterError: type() takes exactly 1 argument, but got 2
+```
+
+---
+
+## `len`
+
+Returns the number of elements in a list or the number of characters in a string.
+
+### Parameters
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `value` | `str` or `list` | Exactly one argument; any other type raises an error |
+
+### Return value
+
+An `int` representing the length of the value.
+
+| Input | Result |
+|-------|--------|
+| `str` | Number of characters |
+| `list` | Number of elements |
+
+### Examples
+
+```cpp
+// String length — counts characters
+len('hello');          // 5
+len('');               // 0
+len('Hades lang');     // 10
+
+// List length — counts elements
+len([1, 2, 3]);        // 3
+len([]);               // 0
+
+// Using len in a loop condition
+words: list = ['one', 'two', 'three'];
+i: int = 0;
+while (i < len(words)) {
+    print(words -> i);
+    i++
+}
+// Output:
+// one
+// two
+// three
+
+// Combine with type for safe usage
+data: list = [10, 20, 30, 40];
+print('Length: ', len(data));
+// Output: Length: 4
+```
+
+### Error behaviour
+
+Passing a non-string, non-list value raises an `InterpreterError`:
+
+```cpp
+len(42);       // InterpreterError: len() takes strings or lists, but got int
+len(TRUE);     // InterpreterError: len() takes strings or lists, but got bool
+len();         // InterpreterError: len() takes exactly 1 argument, but got 0
+```
+
+<Warning>
+`len` does **not** work on `nothing`. Declare an empty string `''` or empty list `[]` instead of `nothing` when you need a zero-length value that `len` can measure.
+</Warning>
+
+---
+
+## Quick-Reference Summary
+
+<Accordion title="All three built-ins at a glance">
+
+| Function | Signature | Returns | Description |
+|----------|-----------|---------|-------------|
+| `print` | `print(...args)` | `nothing` | Concatenates all arguments and prints them with a trailing newline |
+| `type` | `type(value)` | `str` | Returns the Hades type name of the value |
+| `len` | `len(value)` | `int` | Returns the length of a string or list |
+
+</Accordion>

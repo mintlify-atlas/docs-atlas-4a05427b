@@ -1,0 +1,280 @@
+---
+title: "How the Hades Parser Builds the Abstract Syntax Tree"
+sidebarTitle: "Parser"
+description: "A guide to the Hades recursive-descent parser: how it consumes tokens, climbs operator precedence, and produces a typed ProgramNode AST."
+---
+
+The Hades parser sits between the lexer and the interpreter. It receives the flat `list[Token]` that the lexer produced and transforms it into a tree of typed AST node objects rooted at a `ProgramNode`. No evaluation happens here — the parser only answers the question "what program structure do these tokens describe?"
+
+## Public API
+
+Pass any token list (including the `EOF` sentinel) to `Parser`, then call `parse()`:
+
+```python
+from modules.lexer import Lexer
+from modules.parser import Parser
+
+tokens = Lexer("x: int = 10;").tokenize()
+tree   = Parser(tokens).parse()
+print(tree)  # ProgramNode([VarDeclNode('x': TT.INT_TYPE_HINT = NumberNode(10))])
+```
+
+The full signature is:
+
+```python
+Parser(tokens: list[Token]).parse() -> ProgramNode
+```
+
+A module-level convenience wrapper is also provided:
+
+```python
+from modules.parser import parse
+tree = parse(tokens)
+```
+
+<Note>
+  `parse()` raises `ParserError` (a subclass of `SyntaxError`) on any structural problem. The error object carries `line` and `column` from the offending token so the runtime can pinpoint the mistake.
+</Note>
+
+---
+
+## Parsing Strategy
+
+The parser uses **recursive descent** for statement and control-flow grammar, combined with **Pratt-style precedence climbing** for binary expressions. This combination keeps the code straightforward while correctly handling operator associativity and precedence without building a separate grammar table.
+
+<CardGroup cols={2}>
+  <Card title="Recursive Descent" icon="arrow-down">
+    Each statement type (`if`, `while`, `for`, `func`, …) has a dedicated `parse_*` method. The top-level `parse_statement()` dispatcher checks the current token type and routes to the right handler, falling back to expression parsing.
+  </Card>
+  <Card title="Precedence Climbing" icon="arrow-up">
+    `parse_binary(min_precedence)` calls itself recursively, increasing `min_precedence` by 1 at each right-hand recursion. This produces left-associative trees for operators at the same level and correct nesting across levels.
+  </Card>
+</CardGroup>
+
+---
+
+## Operator Precedence
+
+All binary operators and their precedence levels are declared in the `BINARY_PRECEDENCE` class dictionary. Higher numbers bind more tightly.
+
+```python
+BINARY_PRECEDENCE: dict[TT, int] = {
+    TT.OR   : 1, TT.XOR: 1,
+    TT.AND  : 2,
+    TT.EQ   : 3, TT.NEQ: 3, TT.TYPE_EQ: 3, TT.TYPE_NEQ: 3,
+    TT.LT   : 4, TT.GT: 4, TT.LTE: 4, TT.GTE: 4, TT.IN: 4,
+    TT.PLUS : 5, TT.MINUS: 5,
+    TT.STAR : 6, TT.SLASH: 6, TT.PERCENT: 6,
+}
+```
+
+| Level | Operators | Notes |
+|-------|-----------|-------|
+| 1 | `\|\|` `^^` | lowest — logical or / xor |
+| 2 | `&&` | logical and |
+| 3 | `==` `!=` `===` `!==` | equality; `===`/`!==` also check type |
+| 4 | `<` `>` `<=` `>=` `in` | relational + membership |
+| 5 | `+` `-` | additive |
+| 6 | `*` `/` `%` | multiplicative — highest |
+
+---
+
+## Expression Parsing Layers
+
+Expressions are parsed through a fixed descent chain. Each layer only consumes what it owns and defers the rest downward:
+
+<Steps>
+  <Step title="parse_expression → parse_assignment">
+    The entry point. Calls `parse_binary()` first to get the left-hand side, then checks whether the current token is an assignment operator (`=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&&=`, `||=`, `^^=`). If so, the left node must be an `IdNode` or `IndexNode` or `ParserError` is raised.
+  </Step>
+  <Step title="parse_binary (precedence climbing)">
+    Calls `parse_unary()` for the initial left operand, then enters a loop: if the current token appears in `BINARY_PRECEDENCE` with a level ≥ `min_precedence`, it advances, recurses with `min_precedence + 1`, and wraps both sides in a `BinOpNode`.
+  </Step>
+  <Step title="parse_unary">
+    Handles prefix operators `!`, `-`, and `+`. Each recursively calls `parse_unary()` again for the operand, producing a `UnaryOpNode`. Falls through to `parse_postfix()` when the current token is not a unary op.
+  </Step>
+  <Step title="parse_postfix">
+    Wraps `parse_primary()` in a loop that keeps consuming: `++` / `--` postfix operators → `PostfixOpNode`; `(` → function call via `parse_call()`; `->` → index access via `_parse_index()`.
+  </Step>
+  <Step title="parse_primary">
+    Dispatches on the current token type using the `PRIMARY_HANDLERS` dictionary:
+
+    | Token type | Handler | AST node |
+    |-----------|---------|----------|
+    | `INT`, `FLOAT` | `_parse_number` | `NumberNode` |
+    | `BOOL` | `_parse_bool` | `BoolNode` |
+    | `STR` | `_parse_string` | `StringNode` |
+    | `NOTHING_TYPE_HINT` | `_parse_nothing` | `NothingNode` |
+    | `ID` | `_parse_identifier` | `IdNode` |
+    | `LBRACKET` | `_parse_list_literal` | `ListNode` |
+    | `LPAREN` | `_parse_grouping` | (inner expression) |
+  </Step>
+</Steps>
+
+---
+
+## Statement Types and AST Nodes
+
+<Accordion title="Variable declaration — VarDeclNode">
+  **Syntax:** `name: type = value;`
+
+  The parser recognises a declaration when the current token is `TT.ID` and the next token (peeked) is `TT.COLON`. It consumes the name, colon, type-hint token, `=`, and then the initialiser expression.
+
+  ```cpp
+  x: int = 42;
+  greeting: str = 'hello';
+  result: nothing;
+  ```
+
+  Produces `VarDeclNode(name_token, type_hint, value_node)`. A `nothing`-typed variable has `value = None` and skips the `=` entirely.
+</Accordion>
+
+<Accordion title="Assignment — AssignNode">
+  **Syntax:** `target = value;` or `target += value;` etc.
+
+  Parsed inside `parse_assignment()` after the left-hand side has already been parsed as an expression. The target must resolve to an `IdNode` (plain variable) or an `IndexNode` (list element).
+
+  ```cpp
+  x = x + 1;
+  x += 1;
+  items->0 = 99;
+  ```
+
+  Produces `AssignNode(target, assign_token, value_node)`.
+</Accordion>
+
+<Accordion title="Function definition — FuncNode">
+  **Syntax:** `func name(param: type, ...) => return_type { body }`
+
+  ```cpp
+  func add(a: int, b: int) => int {
+      => a + b;
+  }
+  ```
+
+  `parse_func_def()` collects parameters as `(name_token, type_hint_token)` pairs. The return type must be a valid type-hint token. Produces `FuncNode(name, parameters, return_type, body)`.
+</Accordion>
+
+<Accordion title="Return statement — ReturnNode">
+  **Syntax:** `=> expr;` or `=> nothing;`
+
+  The `=>` token doubles as the return keyword. `parse_return()` checks whether the next token is `NOTHING_TYPE_HINT` (value-less return) or an expression.
+
+  ```cpp
+  => x * 2;
+  => nothing;
+  ```
+
+  Produces `ReturnNode(keyword_token, value_node_or_None)`.
+</Accordion>
+
+<Accordion title="If / else if / else — IfNode">
+  **Syntax:**
+
+  ```cpp
+  if (cond) { ... }
+  else if (cond) { ... }
+  else { ... }
+  ```
+
+  `parse_if()` builds a list of `(condition, body)` pairs for the initial `if` and every `else if` branch, then stores the optional bare `else` body separately.
+
+  Produces `IfNode(branches: list[tuple], else_body: list | None)`.
+</Accordion>
+
+<Accordion title="While / do-while — WhileNode">
+  **Syntax:**
+
+  ```cpp
+  while (cond) { ... }
+
+  do { ... } while (cond)
+  ```
+
+  `parse_while()` checks whether the leading keyword is `do` (do-while) or `while`, and sets `is_do` on the resulting node accordingly.
+
+  Produces `WhileNode(is_do: bool, condition, body)`.
+</Accordion>
+
+<Accordion title="C-style for loop — ForNode">
+  **Syntax:** `for (init; test; update) { body }`
+
+  ```cpp
+  for (i: int = 0; i < 10; i++) {
+      print(i);
+  }
+  ```
+
+  `parse_for()` parses each of the three clauses as full statements separated by explicit semicolons, then the body block.
+
+  Produces `ForNode(init, testExpression, updateStatement, body)`.
+</Accordion>
+
+<Accordion title="For-in loop — ForInNode">
+  **Syntax:** `for (elem: type; elem in iterable) { body }`
+
+  ```cpp
+  for (n: int; n in numbers) {
+      print(n);
+  }
+  ```
+
+  Detected inside `parse_for()` by peeking: if the pattern `ID COLON TYPE_HINT SEMICOLON` is seen, `parse_forin()` is called instead. The loop variable name must match on both sides of the semicolon; a mismatch raises `ParserError`.
+
+  Produces `ForInNode(iterator: VarDeclNode, iterable, body)`.
+</Accordion>
+
+<Accordion title="Function call — CallNode">
+  **Syntax:** `name(arg, arg, ...)`
+
+  `parse_call()` is triggered inside `parse_postfix()` when an `IdNode` is immediately followed by `(`. Only identifiers are callable — attempting to call a non-`IdNode` expression raises `ParserError`.
+
+  Produces `CallNode(callee_token, args: list)`.
+</Accordion>
+
+<Accordion title="Index access — IndexNode">
+  **Syntax:** `list->index`
+
+  The `->` (right-arrow) token serves as the indexing operator. `_parse_index()` is triggered inside `parse_postfix()` and parses the index as a primary expression.
+
+  ```cpp
+  items->0
+  matrix->i
+  ```
+
+  Produces `IndexNode(callee, index, token)`.
+</Accordion>
+
+---
+
+## Blocks and Semicolons
+
+### `_parse_block()`
+
+Every construct that uses `{ ... }` delegates body parsing to `_parse_block()`:
+
+<Steps>
+  <Step title="Expect opening brace">
+    Consumes `{` via `expect(TT.LBRACE)`. Raises `ParserError` if absent.
+  </Step>
+  <Step title="Parse statements in a loop">
+    Calls `parse_statement()` followed by `_consume_statement_terminator()` repeatedly until a `}` or `EOF` is seen. An unexpected `EOF` here raises `ParserError` for an unterminated block.
+  </Step>
+  <Step title="Expect closing brace">
+    Consumes `}` via `expect(TT.RBRACE)`.
+  </Step>
+</Steps>
+
+### Semicolon rules (`_consume_statement_terminator`)
+
+Semicolons are required after most statements but the parser applies three special cases to avoid demanding them in places where they would be redundant:
+
+| Situation | Behaviour |
+|-----------|-----------|
+| Current token is `}` or `EOF` | Semicolon is **optional** — we are at the end of a block or file |
+| Previous token was `}` | Semicolon is **optional** — the statement just ended a block |
+| Anything else | Semicolon is **required**; `expect(TT.SEMICOLON)` enforces it |
+
+<Tip>
+  This means you never need a `;` after a closing brace, but you **do** need one after `x = 5` or a bare function call — matching the style of most C-family languages.
+</Tip>

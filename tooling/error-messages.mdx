@@ -1,0 +1,399 @@
+---
+title: "Understanding Hades Error Messages and Diagnostics"
+sidebarTitle: "Error Messages"
+description: "A complete reference for Hades syntax and runtime errors, including the error format, source pointer, and the built-in did-you-mean suggestion feature."
+---
+
+When Hades encounters a problem it prints a richly formatted diagnostic that tells you the error type, a human-readable message, the exact source line, and a red caret (`^`) pointing to the column where the fault was detected. Errors are separated into two families: **syntax errors**, which are raised during lexing or parsing before any code runs, and **runtime errors**, which are raised by the interpreter during execution.
+
+## Error Format
+
+Every error follows the same visual structure, produced by the `f_error` function in `helpers.py`:
+
+```
+-- SyntaxError/Runtime error ------------------------
+Error: <message>
+Line N:
+      <source line, underlined>
+      ^   ← red caret at the error column
+----------------------------------------
+```
+
+- The header line names the error family (`Syntax Error` or `Runtime error`).
+- **Error** shows the message in bold red.
+- **Line N** is the 1-based line number in your source file.
+- The source line is printed underlined so you can identify it at a glance.
+- The red `^` caret sits directly beneath the offending character.
+
+## Syntax Errors
+
+Syntax errors are raised either by the **Lexer** (during tokenisation) or the **Parser** (during grammar analysis). The program never starts executing when a syntax error is present.
+
+### Lexer Errors
+
+<Steps>
+  <Step title="Unexpected character">
+    Triggered when the lexer encounters a character it does not recognise.
+
+    ```cpp
+    int x = 10 @ 2;
+    ```
+
+    ```
+    -- Syntax Error ------------------------
+    Error: Unexpected character: @
+    Line 1:
+          int x = 10 @ 2;
+                     ^
+    ----------------------------------------
+    ```
+  </Step>
+  <Step title="Unterminated string literal">
+    Raised when a string opened with `'` reaches end-of-file without a closing `'`.
+
+    ```cpp
+    str name = 'Hades;
+    ```
+
+    ```
+    -- Syntax Error ------------------------
+    Error: Unterminated string literal
+    Line 1:
+          str name = 'Hades;
+                     ^
+    ----------------------------------------
+    ```
+  </Step>
+  <Step title="Invalid float">
+    Raised when a numeric literal contains more than one decimal point.
+
+    ```cpp
+    float x = 3.14.15;
+    ```
+
+    ```
+    -- Syntax Error ------------------------
+    Error: Invalid float
+    Line 1:
+          float x = 3.14.15;
+                        ^
+    ----------------------------------------
+    ```
+  </Step>
+</Steps>
+
+### Parser Errors
+
+<Steps>
+  <Step title="Expected ';' to terminate the statement">
+    Every statement that is not a block (`{}`) must end with a semicolon.
+
+    ```cpp
+    int x = 5
+    int y = 10;
+    ```
+
+    ```
+    -- Syntax Error ------------------------
+    Error: Expected ';' to terminate the statement, but found 'int'
+    Line 2:
+          int y = 10;
+          ^
+    ----------------------------------------
+    ```
+  </Step>
+  <Step title="Expected ')' to close the expression">
+    A parenthesised expression or function call was not closed.
+
+    ```cpp
+    int result = (10 + 5;
+    ```
+
+    ```
+    -- Syntax Error ------------------------
+    Error: Expected ')' to close the expression, but found ';'
+    Line 1:
+          int result = (10 + 5;
+                               ^
+    ----------------------------------------
+    ```
+  </Step>
+  <Step title="Expected '}' to close the block">
+    A block opened with `{` was not closed before a new statement or end of file.
+
+    ```cpp
+    if (TRUE) {
+        print('ok');
+    
+    int x = 1;
+    ```
+
+    ```
+    -- Syntax Error ------------------------
+    Error: Expected '}' to close the block, but found 'int'
+    Line 4:
+          int x = 1;
+          ^
+    ----------------------------------------
+    ```
+  </Step>
+  <Step title="Unterminated block">
+    A block opened with `{` reached end-of-file without ever being closed.
+
+    ```cpp
+    func greet(name: str) => nothing {
+        print(name);
+    ```
+
+    ```
+    -- Syntax Error ------------------------
+    Error: Unterminated block, expected '}' but reached end of input
+    Line 2:
+          print(name);
+                      ^
+    ----------------------------------------
+    ```
+  </Step>
+</Steps>
+
+## Runtime Errors
+
+Runtime errors (`InterpreterError`) occur during execution. They carry the source token that triggered the fault, so the caret always points to the right place.
+
+### Undefined Variable
+
+Raised when you read a variable name that has not been declared in the current scope.
+
+```cpp
+int result = total + 1;
+```
+
+```
+-- Runtime error ------------------------
+Error: Undefined variable 'total'
+Line 1:
+      int result = total + 1;
+                   ^
+----------------------------------------
+```
+
+### Did You Mean?
+
+When the interpreter cannot find a variable it uses `difflib.get_close_matches` to search all variables currently in scope and suggest the closest match. The cutoff similarity threshold is `0.6`.
+
+```cpp
+int counter = 0;
+counter = couner + 1;
+```
+
+```
+-- Runtime error ------------------------
+Error: Undefined variable 'couner'. Did you mean 'counter'
+Line 2:
+      counter = couner + 1;
+                ^
+----------------------------------------
+```
+
+<Tip>
+  The "did you mean" suggestion only fires when a sufficiently close name is found in the **current scope**. If the variable is declared in an outer scope that is no longer visible, the suggestion will not appear.
+</Tip>
+
+### Cannot Assign to Undeclared Variable
+
+Raised when you try to assign to a name that was never declared with a type hint.
+
+```cpp
+score = 100;
+```
+
+```
+-- Runtime error ------------------------
+Error: Cannot assign to undeclared variable 'score'
+Line 1:
+      score = 100;
+      ^
+----------------------------------------
+```
+
+Declare the variable first:
+
+```cpp
+int score = 0;
+score = 100;
+```
+
+### Division by Zero
+
+Raised for both `/` and `%` operations when the right-hand side evaluates to zero.
+
+```cpp
+int x = 10 / 0;
+```
+
+```
+-- Runtime error ------------------------
+Error: Division by zero
+Line 1:
+      int x = 10 / 0;
+                 ^
+----------------------------------------
+```
+
+### Invalid Operand Types
+
+Raised when an operator is applied to incompatible types, such as adding a number to a string.
+
+```cpp
+int x = 5 + 'hello';
+```
+
+```
+-- Runtime error ------------------------
+Error: Invalid operand types for PLUS: int and str
+Line 1:
+      int x = 5 + 'hello';
+                ^
+----------------------------------------
+```
+
+### List Index Out of Range
+
+Raised when you access an index that does not exist in the list.
+
+```cpp
+list nums = [1, 2, 3];
+int val = nums -> 10;
+```
+
+```
+-- Runtime error ------------------------
+Error: List index 10 out of range (length 3)
+Line 2:
+      int val = nums -> 10;
+                     ^
+----------------------------------------
+```
+
+### Type Mismatch
+
+Raised when a value assigned to a typed variable does not match the declared type hint.
+
+```cpp
+int count = 'five';
+```
+
+```
+-- Runtime error ------------------------
+Error: Type mismatch for 'count': expected int, but got str
+Line 1:
+      int count = 'five';
+          ^
+----------------------------------------
+```
+
+Type mismatches are also caught for function parameters and return values.
+
+### Function Argument Count Mismatch
+
+Raised when a function is called with the wrong number of arguments.
+
+```cpp
+func add(a: int, b: int) => int {
+    => a + b;
+}
+
+int result = add(1, 2, 3);
+```
+
+```
+-- Runtime error ------------------------
+Error: 'add' expects 2 arguments, but got 3
+Line 5:
+      int result = add(1, 2, 3);
+                   ^
+----------------------------------------
+```
+
+### Calling a Non-Callable
+
+Raised when you attempt to call a variable as if it were a function.
+
+```cpp
+int x = 42;
+x();
+```
+
+```
+-- Runtime error ------------------------
+Error: 'x' is not callable
+Line 2:
+      x();
+      ^
+----------------------------------------
+```
+
+### Cannot Iterate Over Non-List/String
+
+Raised when a `for … in` loop is given a value that is neither a `list` nor a `str`.
+
+```cpp
+int n = 5;
+for (i: int; i in n) {
+    print(i);
+}
+```
+
+```
+-- Runtime error ------------------------
+Error: Cannot iterate over type 'int'
+Line 2:
+      for (i: int; i in n) {
+                        ^
+----------------------------------------
+```
+
+### Cannot Redefine a Function
+
+Raised when a `func` definition uses a name that already exists in the current scope.
+
+```cpp
+func greet() => nothing {
+    print('Hello');
+}
+
+func greet() => nothing {
+    print('Hi');
+}
+```
+
+```
+-- Runtime error ------------------------
+Error: Cannot redefine 'greet'
+Line 5:
+      func greet() => nothing {
+           ^
+----------------------------------------
+```
+
+## Summary Table
+
+| Error | Phase | Common Cause |
+|---|---|---|
+| Unexpected character | Lexer | Invalid symbol in source (e.g. `@`, `#`) |
+| Unterminated string literal | Lexer | Missing closing `'` |
+| Invalid float | Lexer | Multiple decimal points in a number |
+| Expected `';'` | Parser | Missing semicolon at end of statement |
+| Expected `')'` | Parser | Unclosed parenthesis in expression or call |
+| Expected `'}'` | Parser | Unclosed block body |
+| Unterminated block | Parser | EOF inside a `{...}` block |
+| Undefined variable | Runtime | Variable read before declaration |
+| Cannot assign to undeclared | Runtime | Assignment without prior `type name = …` declaration |
+| Division by zero | Runtime | Divisor evaluates to `0` |
+| Invalid operand types | Runtime | Operator used on incompatible types |
+| List index out of range | Runtime | Index `≥ len(list)` or `< -len(list)` |
+| Type mismatch | Runtime | Value does not match declared type hint |
+| Argument count mismatch | Runtime | Wrong number of arguments in function call |
+| Not callable | Runtime | `()` applied to a non-function variable |
+| Cannot iterate | Runtime | `for … in` over a non-list, non-string value |
+| Cannot redefine function | Runtime | `func` declaration with a name already in scope |

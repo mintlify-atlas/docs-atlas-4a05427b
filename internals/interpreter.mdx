@@ -1,0 +1,234 @@
+---
+title: "Hades Interpreter: AST Evaluation and Runtime State"
+sidebarTitle: "Interpreter"
+description: "How the Hades tree-walk interpreter dispatches AST nodes, manages nested Scope chains, executes built-ins, and enforces runtime type hints."
+---
+
+The Hades interpreter is the final and most dynamic stage of the pipeline. It receives the `ProgramNode` that the parser produced and evaluates it by walking every node in the tree, maintaining all runtime state inside a chain of `Scope` objects. Values are plain Python objects — there are no separate Hades value wrappers for primitives.
+
+## Public API
+
+Instantiate `Interpreter` (which creates a fresh root scope) and call `evaluate()` with any AST node:
+
+```python
+from modules.lexer import Lexer
+from modules.parser import Parser
+from modules.interpreter import Interpreter
+
+source = "x: int = 6; y: int = x * 7; print(y);"
+tokens = Lexer(source).tokenize()
+tree   = Parser(tokens).parse()
+Interpreter().evaluate(tree)   # prints: 42
+```
+
+The module also exports a convenience function:
+
+```python
+from modules.interpreter import interpret_program
+interpret_program(tree)
+```
+
+`evaluate(node)` dispatches via `NODE_HANDLERS` (see below) and returns the Python value that the node produces. Statements that have no meaningful value (declarations, function definitions, loops) return `None`.
+
+---
+
+## Dispatch: `NODE_HANDLERS`
+
+Rather than a large `isinstance` chain, the interpreter uses a dictionary keyed on AST node *types* populated at `__init__` time:
+
+```python
+NODE_HANDLERS = {
+    ast.ProgramNode  : self._eval_program,
+    ast.NothingNode  : self._eval_nothing,
+    ast.NumberNode   : self._eval_number,
+    ast.BoolNode     : self._eval_bool,
+    ast.StringNode   : self._eval_string,
+    ast.ListNode     : self._eval_list,
+    ast.IndexNode    : self._eval_index,
+    ast.IdNode       : self._eval_id,
+    ast.BinOpNode    : self._eval_binop,
+    ast.UnaryOpNode  : self._eval_unaryop,
+    ast.PostfixOpNode: self._eval_postfixop,
+    ast.AssignNode   : self._eval_assign,
+    ast.VarDeclNode  : self._eval_vardecl,
+    ast.CallNode     : self._eval_call,
+    ast.IfNode       : self._eval_if,
+    ast.WhileNode    : self._eval_while,
+    ast.ForNode      : self._eval_for,
+    ast.ForInNode    : self._eval_forin,
+    ast.FuncNode     : self._eval_func_def,
+    ast.ReturnNode   : self._eval_return,
+}
+```
+
+`evaluate()` performs a single dictionary lookup on `type(node)`. If the type has no handler an `InterpreterError` is raised immediately.
+
+<Note>
+  `NODE_HANDLERS` is an instance dictionary (not a class variable) because each entry is a bound method. This is set up in `__init__` after `self.scope` exists.
+</Note>
+
+---
+
+## Scope and Variable Lifetime
+
+Runtime state lives in a chain of `Scope` objects defined in `modules/scope.py`. Each scope holds a `variables` dictionary and an optional `parent` reference.
+
+```python
+class Scope:
+    def __init__(self, parent: Scope | None = None): ...
+
+    def declare(name: str, value: Any) -> None   # create in current scope
+    def get(name: str) -> Any                    # walk up chain; KeyError if not found
+    def set(name: str, value: Any) -> None       # walk up chain to mutate existing binding
+    def has(name: str) -> bool                   # check current scope only (no parent walk)
+```
+
+<Steps>
+  <Step title="Global scope">
+    Created once by `Interpreter.__init__()`. All top-level declarations land here.
+  </Step>
+  <Step title="Block scope">
+    `_eval_block()` saves `self.scope`, replaces it with `Scope(previous_scope)`, evaluates all statements, and restores the old scope in a `finally` block — so block-local variables are discarded even on error.
+  </Step>
+  <Step title="Function scope">
+    `_call_function()` creates a new `Scope` parented to the *function's closure scope* (not the call-site scope), giving Hades lexical scoping. Parameters are declared into this new scope with type-hint validation before the body runs.
+  </Step>
+  <Step title="For-in scope">
+    Each iteration of a `for-in` loop gets its own fresh `Scope`. The loop variable is declared anew per iteration and discarded when the iteration scope is torn down.
+  </Step>
+</Steps>
+
+---
+
+## Built-in Functions
+
+The `BUILTINS` dictionary maps name strings to internal handler methods. Builtins are checked *before* the scope chain, so they cannot be shadowed by user-defined functions.
+
+| Name | Behaviour |
+|------|-----------|
+| `print` | Calls `_to_string()` on each argument and prints them concatenated (no separator). Returns `None`. |
+| `type` | Takes exactly 1 argument; returns its Hades type name as a `str` (`'int'`, `'float'`, `'bool'`, `'str'`). |
+| `len` | Takes exactly 1 argument; accepts `str` or `list`; returns Python `len()` as an `int`. |
+
+```cpp
+print('value: ', x);   // prints: value: 42
+print(type(3.14));     // prints: float
+print(len([1, 2, 3])); // prints: 3
+```
+
+---
+
+## `HadesFunction` Runtime Object
+
+When the interpreter evaluates a `FuncNode` it creates a `HadesFunction` dataclass and stores it in the current scope under the function's name:
+
+```python
+@dataclass
+class HadesFunction:
+    name: str
+    parameters: list[tuple[Token, Token]]  # (name_token, type_hint_token) pairs
+    return_type: Token
+    body: list                             # list of statement nodes
+    closure_scope: Scope                   # lexical scope at definition time
+```
+
+Attempting to re-declare a function name that already exists in the current scope raises `InterpreterError`.
+
+---
+
+## Return Values: `ReturnSignal`
+
+Hades uses a Python exception to propagate return values up the call stack cleanly, avoiding the need to thread a "did we return?" flag through every recursive `evaluate()` call:
+
+```python
+class ReturnSignal(Exception):
+    def __init__(self, value): ...
+```
+
+`_eval_return()` raises `ReturnSignal(value)`. `_call_function()` catches it with `except ReturnSignal as r` and extracts `r.value`. If a non-`nothing` function reaches the end of its body without raising `ReturnSignal`, `InterpreterError` is raised to report the missing return.
+
+<Tip>
+  `ReturnSignal` is intentionally not a subclass of `InterpreterError`. This keeps accidental catch-all handlers from swallowing legitimate return propagation.
+</Tip>
+
+---
+
+## Type Checking at Runtime
+
+`_check_type_hint(value, type_hint_token, name_token)` validates that a runtime value matches the declared type hint. It is called:
+
+- After evaluating a variable declaration's initialiser
+- For each argument passed to a function call
+- For the return value of a non-`nothing` function
+
+The mapping from `TT` hint to expected Python type:
+
+| Token type | Python type checked |
+|-----------|---------------------|
+| `INT_TYPE_HINT` | `int` |
+| `FLOAT_TYPE_HINT` | `float` |
+| `BOOL_TYPE_HINT` | `bool` (with an explicit `isinstance` guard so `True`/`False` are not accepted as `int`) |
+| `STR_TYPE_HINT` | `str` |
+| `LIST_TYPE_HINT` | `list` |
+| `NOTHING_TYPE_HINT` | `NoneType` |
+
+A mismatch raises:
+
+```
+InterpreterError: Type mismatch for 'x': expected int, but got float at 2, 5
+```
+
+---
+
+## Utility Methods
+
+<CardGroup cols={2}>
+  <Card title="_truthy(value)" icon="check">
+    Converts any runtime value to a boolean for condition checks in `if`, `while`, and `for` statements:
+
+    - `None` → `False`
+    - `bool` → itself
+    - `int` / `float` → `value != 0`
+    - `str` → `value != ''`
+    - anything else → `bool(value)`
+  </Card>
+  <Card title="_to_string(value)" icon="text-size">
+    Converts runtime values to their Hades string representation for `print()`:
+
+    - `bool` → `'TRUE'` or `'FALSE'`
+    - `None` → `'nothing'`
+    - `float` → strips trailing zeros (e.g. `3.50` → `'3.5'`, `3.0` → `'3'`)
+    - anything else → `str(value)`
+  </Card>
+</CardGroup>
+
+---
+
+## Error Handling
+
+All interpreter errors are raised as `InterpreterError`, which carries the offending `Token` for source-location reporting:
+
+```python
+class InterpreterError(Exception):
+    def __init__(self, message: str, token: Token | None = None): ...
+```
+
+When a token is provided, the message is automatically suffixed with `at line, column`.
+
+<Accordion title="Undefined variable suggestions">
+  When `_eval_id()` fails to find a name in any enclosing scope, it uses Python's `difflib.get_close_matches` to suggest the closest known variable name (cutoff 0.6, one suggestion):
+
+  ```
+  InterpreterError: Undefined variable 'lenght'. Did you mean 'length' at 4, 3
+  ```
+
+  The candidate list is taken from `self.scope.variables` — the innermost scope only, not the full chain.
+</Accordion>
+
+<Accordion title="Division by zero">
+  Both `_eval_binop` and `_assign_to_id`/`_assign_to_index` catch Python's `ZeroDivisionError` and re-raise it as `InterpreterError('Division by zero', token)`.
+</Accordion>
+
+<Accordion title="Type errors in operators">
+  Python `TypeError` exceptions from binary or unary operator lambdas are caught and re-raised as `InterpreterError` with a human-readable message that names the Hades types of both operands.
+</Accordion>

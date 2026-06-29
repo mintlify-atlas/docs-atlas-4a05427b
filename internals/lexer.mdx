@@ -1,0 +1,176 @@
+---
+title: "Hades Lexer: Scanning Source Code into Token Objects"
+sidebarTitle: "Lexer"
+description: "How the Hades lexer scans raw source text character-by-character and emits a flat ordered list of typed Token objects ready for the parser."
+---
+
+The Hades lexer is the first stage of the interpreter pipeline. It reads a raw string of source code and converts it into a flat, ordered list of `Token` objects — each carrying a type tag, a concrete value, and the exact line/column where it appeared. No understanding of program structure happens here; the lexer only answers the question "what is this character sequence?"
+
+## Public API
+
+Instantiate `Lexer` with the full source text, then call `tokenize()`:
+
+```python
+from modules.lexer import Lexer
+
+tokens = Lexer("x: int = 42;").tokenize()
+for token in tokens:
+    print(token)
+```
+
+The call signature is:
+
+```python
+Lexer(source: str).tokenize() -> list[Token]
+```
+
+`tokenize()` repeatedly calls the internal `get_next_token()` method until a `TT.EOF` sentinel is produced, collecting every token into a list.
+
+<Note>
+  The lexer always appends a final `Token(TT.EOF, None, line, column)` so the parser never reads past the end of the token stream.
+</Note>
+
+---
+
+## The `Token` Dataclass
+
+Every token is an instance of the `Token` dataclass defined in `modules/tokens.py`:
+
+```python
+@dataclass
+class Token:
+    type: TT       # the token-type enum member
+    value: Any     # the concrete value (int, float, bool, str, or None)
+    line: int      # 0-based source line
+    column: int    # 1-based column within the line
+```
+
+Its `__repr__` produces `Token(TT.INT, 42, 0:5)` — useful for debugging.
+
+---
+
+## Token Categories
+
+All token types are members of the `TT` enum. They fall into six broad categories.
+
+<CardGroup cols={2}>
+  <Card title="Literals" icon="quote-right">
+    `INT`, `FLOAT`, `BOOL`, `STR`, `ID`
+
+    Numeric literals carry a Python `int` or `float` value. `BOOL` tokens carry a Python `bool` — `TRUE` → `True`, `FALSE` → `False`. `STR` carries the already-unescaped string content. `ID` carries the raw identifier text.
+  </Card>
+  <Card title="Type Hints" icon="tag">
+    `INT_TYPE_HINT`, `FLOAT_TYPE_HINT`, `BOOL_TYPE_HINT`, `STR_TYPE_HINT`, `NOTHING_TYPE_HINT`, `LIST_TYPE_HINT`
+
+    Emitted when the keywords `int`, `float`, `bool`, `str`, `nothing`, or `list` are seen. The parser uses these to enforce declared types on variables and function signatures.
+  </Card>
+  <Card title="Operators" icon="calculator">
+    **Arithmetic:** `PLUS` `MINUS` `STAR` `SLASH` `PERCENT` `INCREMENT` `DECREMENT`
+
+    **Comparison:** `EQ` `NEQ` `TYPE_EQ` `TYPE_NEQ` `LT` `GT` `LTE` `GTE`
+
+    **Logical:** `AND` `OR` `XOR` `NOT`
+
+    **Assignment:** `ASSIGN` `PLUS_EQ` `MINUS_EQ` `STAR_EQ` `SLASH_EQ` `PERCENT_EQ` `AND_EQ` `OR_EQ` `XOR_EQ`
+  </Card>
+  <Card title="Keywords" icon="key">
+    `IF` `ELSE` `DO` `WHILE` `FOR` `IN` `FUNC` `CLASS` `CREATOR` `METHOD` `OPERATOR` `MY`
+
+    All keywords are matched inside `read_id()` via a plain dictionary lookup after the full identifier text is accumulated.
+  </Card>
+  <Card title="Punctuation" icon="ellipsis">
+    `SEMICOLON` (`;`), `COLON` (`:`), `COMMA` (`,`), `DOT` (`.`)
+
+    Also: `LPAREN` `RPAREN` `LBRACE` `RBRACE` `LBRACKET` `RBRACKET`
+  </Card>
+  <Card title="Arrows & EOF" icon="arrow-right">
+    `RIGHT_ARROW` (`->`), `RIGHT_DOUBLE_ARROW` (`=>`)
+
+    `->` is the list-index operator. `=>` separates a function's return type and doubles as the return statement keyword. `EOF` marks the end of input.
+  </Card>
+</CardGroup>
+
+---
+
+## How Tokenization Works
+
+<Steps>
+  <Step title="Skip whitespace and comments">
+    Before every token attempt, `skip_whitespace()` consumes spaces, tabs, carriage returns, and newlines. `skip_comment()` then discards everything from a `//` pair to the next newline. Both routines keep `self.line` and `self.column` up to date.
+  </Step>
+  <Step title="Read numbers">
+    When `self.current` is a digit, `read_number()` accumulates digits and at most one decimal point. If exactly one `.` is seen the token type switches from `TT.INT` to `TT.FLOAT`; a second `.` raises `SyntaxError`. The final value is cast with `int()` or `float()` accordingly.
+  </Step>
+  <Step title="Read strings">
+    An opening single-quote `'` triggers `read_str()`. Characters are appended verbatim until either a closing `'` or a backslash escape sequence is encountered. Supported escapes:
+
+    | Escape | Result |
+    |--------|--------|
+    | `\n`   | newline |
+    | `\t`   | tab |
+    | `\\`   | literal backslash |
+    | `\'`   | literal single-quote |
+
+    Any other character after `\` is passed through unchanged. An unterminated string (no closing `'`) raises `SyntaxError`.
+  </Step>
+  <Step title="Read identifiers and keywords">
+    When `self.current` matches `[A-Za-z_]`, `read_id()` accumulates alphanumeric characters and underscores, then checks the result against a keyword dictionary. Matches produce the corresponding keyword token type; everything else becomes `TT.ID`.
+  </Step>
+  <Step title="Match multi-character operator tokens">
+    Operator tokens are matched in strict length order — longest first — to avoid ambiguity.
+
+    **3-character tokens** (checked first):
+
+    | Token | Symbol |
+    |-------|--------|
+    | `TYPE_EQ`  | `===` |
+    | `TYPE_NEQ` | `!==` |
+    | `AND_EQ`   | `&&=` |
+    | `OR_EQ`    | `\|\|=` |
+    | `XOR_EQ`   | `^^=` |
+
+    **2-character tokens** (checked second):
+
+    | Token | Symbol | Token | Symbol |
+    |-------|--------|-------|--------|
+    | `EQ`        | `==`  | `NEQ`       | `!=`  |
+    | `GTE`       | `>=`  | `LTE`       | `<=`  |
+    | `PLUS_EQ`   | `+=`  | `MINUS_EQ`  | `-=`  |
+    | `STAR_EQ`   | `*=`  | `SLASH_EQ`  | `/=`  |
+    | `PERCENT_EQ`| `%=`  | `AND`       | `&&`  |
+    | `OR`        | `\|\|`| `XOR`       | `^^`  |
+    | `INCREMENT` | `++`  | `DECREMENT` | `--`  |
+    | `RIGHT_ARROW`       | `->` | `RIGHT_DOUBLE_ARROW` | `=>` |
+  </Step>
+  <Step title="Match single-character tokens">
+    If no multi-character pattern matched, the lexer consults a plain dictionary keyed on the current character. Unrecognised characters raise `SyntaxError` via `RaiseError()`.
+  </Step>
+</Steps>
+
+<Tip>
+  The 3-char → 2-char → 1-char priority ordering is the core ambiguity-resolution strategy. For example, `===` must be checked before `==` or `=` so that all three characters are consumed as a single `TYPE_EQ` token rather than an `EQ` followed by a stray `ASSIGN`.
+</Tip>
+
+---
+
+## Debugging with `pretty_print()`
+
+`pretty_print()` calls `tokenize()` internally and then formats the token stream line-by-line to standard output, grouping every token that shares the same source line:
+
+```python
+from modules.lexer import Lexer
+
+Lexer("x: int = 42;").pretty_print()
+```
+
+Each token is rendered as `(type, value, line:col)` and the word `NEWLINE` is inserted whenever a new source line begins. This makes it easy to spot tokenisation problems without running the full parser.
+
+<Accordion title="Error reporting">
+  All lexer errors are raised as Python `SyntaxError` via the `RaiseError()` helper, which includes the offending line and column:
+
+  ```
+  SyntaxError: Lexer error at (3, 12): Unexpected character: @
+  ```
+
+  The parser and interpreter each define their own error types on top of this primitive.
+</Accordion>

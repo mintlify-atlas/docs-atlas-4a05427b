@@ -1,0 +1,168 @@
+---
+title: "Lists and Records: Sequential Collection Types in Hades"
+sidebarTitle: "Lists & Records"
+description: "Understand Hades mutable lists and immutable records, index access syntax, iteration, membership testing, and the key differences between them."
+---
+
+Hades provides two sequential collection types with a clear design intent: **lists** are the mutable, workhorse container you reach for most of the time; **records** are immutable snapshots whose contents can never change after creation. Choosing between them is a statement of intent — if data must not change, make it a record.
+
+## Lists
+
+A list is an ordered, mutable sequence of values enclosed in square brackets. Elements are comma-separated and may be of mixed types.
+
+```cpp
+scores: list = [95, 87, 92, 78];
+mixed:  list = [1, 'hello', TRUE, 3.14];
+empty:  list = [];
+```
+
+### Indexed access
+
+Use the `->` operator followed by a zero-based integer index to read an element:
+
+```cpp
+scores: list = [95, 87, 92, 78];
+first: int = scores->0;   // 95
+third: int = scores->2;   // 92
+```
+
+<Warning>
+  Accessing an index outside the list's bounds raises a runtime error. Use `len(scores)` to guard boundary checks.
+</Warning>
+
+### Index assignment
+
+The same `->` syntax on the left-hand side of an assignment mutates the element at that position:
+
+```cpp
+scores->0 = 100;
+print(scores->0);   // 100
+```
+
+All compound assignment operators work on list elements too:
+
+```cpp
+scores->1 += 5;     // 87 + 5 = 92
+scores->2 *= 2;     // 92 * 2 = 184
+```
+
+### Iterating over a list
+
+Use the for-in loop to visit every element. The loop variable is typed and each element is checked at runtime:
+
+```cpp
+scores: list = [95, 87, 92, 78];
+
+for (score: int; score in scores) {
+    print(score)
+}
+// outputs: 95  87  92  78
+```
+
+### Membership testing with `in`
+
+The `in` operator returns `TRUE` if the left-hand value is present in the list:
+
+```cpp
+scores: list = [95, 87, 92, 78];
+
+if (92 in scores) {
+    print('found 92')
+}
+
+if (!(50 in scores)) {
+    print('50 is not in scores')
+}
+```
+
+### Getting the length
+
+The built-in `len` function returns the number of elements:
+
+```cpp
+scores: list = [95, 87, 92, 78];
+print(len(scores));   // 4
+```
+
+## Records
+
+A record is an immutable sequence declared as a comma-separated string literal enclosed in double quotes. Unlike lists, records require no element type hints and cannot be modified after creation.
+
+```cpp
+coords: record = "10, 20, 30";
+weekdays: record = "Mon, Tue, Wed, Thu, Fri";
+```
+
+### Indexed access
+
+Record elements are accessed using the variable name followed by the index in double quotes:
+
+```cpp
+coords: record = "10, 20, 30";
+first: int = coords"0";    // 10
+second: int = coords"1";   // 20
+```
+
+### Immutability
+
+Attempting to assign to a record element raises a `TypeError`:
+
+```cpp
+coords: record = "10, 20, 30";
+coords"0" = 99;   // TypeError — records are immutable
+```
+
+<Note>
+  If you need a collection whose contents will change, use a `list`. Use a `record` to signal clearly that the data is fixed — configuration values, lookup tables, and coordinate tuples are good candidates.
+</Note>
+
+## Comparison: list vs. record
+
+<CardGroup cols={2}>
+  <Card title="list" icon="list">
+    - Declared with `[ ]`
+    - Elements accessed via `container->index`
+    - Mutable — elements can be added, removed, or updated
+    - Iterable with for-in
+    - Works with `in` membership operator
+    - `len()` supported
+  </Card>
+  <Card title="record" icon="lock">
+    - Declared as a comma-separated `"string"`
+    - Elements accessed via `container"index"`
+    - Immutable — mutation raises a TypeError
+    - No type annotation required on declaration
+    - Use `rec` as the type hint keyword
+  </Card>
+</CardGroup>
+
+## Practical example
+
+```cpp
+// Build a list of test scores, update it, and report results
+scores: list = [72, 85, 90, 68, 95];
+
+// Fix a data-entry error
+scores->0 = 75;
+
+// Find the sum manually
+total: int = 0;
+for (s: int; s in scores) {
+    total += s
+}
+print('Total: ', total);         // Total: 413
+print('Count: ', len(scores));   // Count: 5
+
+// Check membership
+if (95 in scores) {
+    print('Top score present')
+}
+
+// Immutable reference data as a record
+grades: record = "F, D, C, B, A";
+print(grades"4");   // A
+```
+
+<Tip>
+  Because records are immutable, you can pass them around freely without worrying about unexpected mutations. Think of them as constants for sequential data.
+</Tip>

@@ -1,0 +1,192 @@
+---
+title: "Welcome to Hades: A Statically-Typed Scripting Language"
+sidebarTitle: "Introduction"
+description: "Hades is a C-style, statically-typed interpreted language built in Python. Explore its features, type system, and three-stage interpreter pipeline."
+---
+
+Hades is a programming language created by Toby Paradise as a passion project. It combines the familiar curly-brace syntax of C-family languages with static type hints and an interpreter written entirely in Python. Whether you want to explore language internals, experiment with a clean scripting syntax, or study how interpreters are built, Hades offers a focused and readable foundation.
+
+## What Is Hades?
+
+Hades is an **interpreted**, **statically-typed** language with C-style syntax. Source files use the `.hds` (primary) or `.hd` (alternate) extension and are executed by passing them directly to the Python-based runtime:
+
+```bash
+python3 main.py my_program.hds
+```
+
+Every variable declaration carries an explicit type hint, functions declare their parameter and return types, and the interpreter enforces these contracts at runtime — catching type mismatches before they silently corrupt values.
+
+<Note>
+  Hades is a passion project and an evolving language. Some advanced features (such as classes and structs) are defined in the grammar but may be partially implemented in the current interpreter.
+</Note>
+
+## Key Language Features
+
+### Type System
+
+Hades variables must be declared with a type hint. The following primitive and complex types are supported:
+
+| Type hint | Description | Example literal |
+|-----------|-------------|-----------------|
+| `int` | Integer number | `42` |
+| `float` | Floating-point number | `3.14` |
+| `bool` | Boolean value | `TRUE`, `FALSE` |
+| `str` | String | `'hello'` |
+| `list` | Mutable ordered sequence | `[1, 2, 3]` |
+| `nothing` | Absence of a value (like `null`) | *(no initializer needed)* |
+
+Variables must be declared and initialized in the same statement, with the exception of `nothing`:
+
+```cpp
+name: str = 'Alice';
+score: int = 100;
+ratio: float = 0.95;
+active: bool = TRUE;
+placeholder: nothing;
+```
+
+### Functions and Closures
+
+Functions are declared with the `func` keyword, typed parameter list, and a `=> ReturnType` annotation. The `=>` symbol is also used as the return statement inside the body:
+
+```cpp
+func greet(name: str) => str {
+    => 'Hello, ' + name
+}
+
+print(greet('World'))
+```
+
+Functions capture their surrounding scope as a **closure**, meaning inner functions can read variables declared in outer scopes even after those outer scopes have finished executing.
+
+### Classes
+
+Classes act as constructors or templates for objects. They support three kinds of members:
+
+- **`creator`** — an initializer method called automatically when an instance is created (named identically to the class).
+- **`method`** — a regular instance method.
+- **`operator`** — overloads a built-in operator for instances of the class.
+
+Inside a class, `my.` is used to reference instance variables and methods (similar to `this` or `self` in other languages):
+
+```cpp
+Student: class {
+    creator Student(me, name: str, age: int) => nothing {
+        my.name: str = name;
+        my.age: int = age
+    };
+
+    method AgeUp(me) => nothing {
+        my.age++
+    };
+
+    operator !(me) => bool {
+        => !my.name || !my.age
+    }
+};
+
+Alice: Student = Student{'Alice', 20};
+Alice.AgeUp();
+print(Alice.age)
+```
+
+### Structs
+
+Structs aggregate multiple named fields of potentially different types into a single value. They are defined as a template and instantiated separately, either positionally or by name:
+
+```cpp
+Point: struct = {
+    x: float;
+    y: float
+};
+
+origin: struct<Point> = {0.0, 0.0};
+named:  struct<Point> = { x = 1.5, y = 2.0 };
+```
+
+### Lists and Records
+
+Hades provides two sequence types:
+
+- **`list`** — a mutable sequence accessed with the `->` index operator (`scores->0`).
+- **`record`** — an immutable sequence defined with double-quoted comma-separated values (`"a, b, c"`), accessed with `record"index"`. Attempting to mutate a record raises a `TypeError`.
+
+```cpp
+scores: list = [95, 87, 92];
+first: int = scores->0;
+
+coords: rec = "10, 20, 30";
+```
+
+### Control Flow
+
+Hades supports a full suite of control flow constructs:
+
+| Construct | Syntax |
+|-----------|--------|
+| Conditional | `if (cond) { } else if (cond) { } else { }` |
+| While loop | `while (cond) { }` |
+| Do-while loop | `do { } while (cond);` |
+| C-style for loop | `for (i: int = 0; i < n; i++) { }` |
+| For-in loop | `for (x: int; x in list) { }` |
+
+Additional keywords include `break` (exit a loop), `next` (skip to the next iteration), and `_goTo label` (jump to a named label).
+
+### Built-in Functions
+
+The interpreter ships with three built-in functions:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `print` | `print(a, b, ...)` | Prints all arguments concatenated with no separator |
+| `type` | `type(value)` | Returns the Hades type name of a value as a string |
+| `len` | `len(value)` | Returns the length of a `str` or `list` |
+
+```cpp
+greeting: str = 'Hello';
+print(type(greeting))   // str
+print(len(greeting))    // 5
+```
+
+## The Interpreter Pipeline
+
+Every `.hds` file passes through three stages before any output is produced:
+
+<Steps>
+  <Step title="Lexer">
+    The **Lexer** (`modules/lexer.py`) reads raw source text character-by-character and produces a flat list of typed `Token` objects — keywords, identifiers, literals, operators, and punctuation.
+  </Step>
+  <Step title="Parser">
+    The **Parser** (`modules/parser.py`) consumes the token stream and builds an **Abstract Syntax Tree** (AST) composed of typed node objects (e.g. `VarDeclNode`, `FuncNode`, `IfNode`). Structural errors such as mismatched brackets or missing semicolons are raised here as `SyntaxError`.
+  </Step>
+  <Step title="Interpreter">
+    The **Interpreter** (`modules/interpreter.py`) walks the AST node-by-node, evaluating expressions and executing statements. It maintains a chain of `Scope` objects to handle variables and closures. Type-hint enforcement and runtime errors (`InterpreterError`) are handled at this stage.
+  </Step>
+</Steps>
+
+Pass the `-v` / `--verbose` flag to print the raw token list and AST between the parse and interpret stages — useful for debugging or learning how the pipeline works:
+
+```bash
+python3 main.py my_program.hds -v
+```
+
+## VS Code Extension
+
+The repository includes a VS Code extension in the `hades-language/` directory (publisher: `tobyp`, display name: **Hades Language Support**). It provides syntax highlighting for `.hds` and `.hd` files. See the [Installation guide](/installation#vs-code-extension) for instructions on installing it as a local extension.
+
+## Where to Go Next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Write and run your first Hades program in minutes.
+  </Card>
+  <Card title="Variables & Types" icon="brackets-curly" href="/language/variables-and-types">
+    Deep dive into type hints, declarations, and truthiness rules.
+  </Card>
+  <Card title="Functions" icon="function" href="/language/functions">
+    Learn closures, return types, and function definitions.
+  </Card>
+  <Card title="Built-in Reference" icon="book" href="/reference/builtins">
+    Complete reference for `print`, `type`, and `len`.
+  </Card>
+</CardGroup>

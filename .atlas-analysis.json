@@ -1,23 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Hades",
+  "projectType": "general",
+  "projectName": "Hades",
+  "projectDescription": "Hades is a statically-typed, interpreted programming language with C-style syntax, implemented in Python, featuring classes, structs, closures, and a VS Code extension for syntax highlighting.",
   "theme": "aspen",
-  "colors": {
-    "primary": "#6B21A8",
-    "light": "#A855F7",
-    "dark": "#3B0764"
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/ToberlerOhn/hades"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/ToberlerOhn/hades"
-    }
-  },
+  "primaryColor": "#6B21A8",
+  "lightColor": "#A855F7",
+  "darkColor": "#3B0764",
   "navigation": {
     "tabs": [
       {
@@ -76,5 +64,33 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Static type hints for variables and function parameters",
+    "C-style syntax with semicolons and braces",
+    "First-class functions with closures",
+    "Classes with constructors, methods, and operator overloading",
+    "Structs for lightweight data aggregation",
+    "Mutable lists and immutable records",
+    "Four loop types: while, do-while, for, and for-in",
+    "Built-in functions: print, type, len",
+    "Descriptive runtime and syntax error messages with source location",
+    "VS Code extension with syntax highlighting"
+  ],
+  "publicApiSurface": [
+    "python3 main.py <file.hds>",
+    "python3 main.py <file.hds> --verbose",
+    "Lexer(source).tokenize()",
+    "Parser(tokens).parse()",
+    "Interpreter().evaluate(tree)",
+    "print(value)",
+    "type(value)",
+    "len(value)",
+    "func name(param: type) => ReturnType { ... }",
+    "name: type = value;",
+    "class { creator, method, operator }",
+    "struct { field: type; }",
+    "list -> index",
+    "for (i: int; i in iterable)"
+  ]
 }
